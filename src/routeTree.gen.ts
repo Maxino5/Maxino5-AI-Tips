@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccuracyRouteImport } from './routes/accuracy'
+import { Route as NewsRouteImport } from './routes/news'
 import { Route as ValueRouteImport } from './routes/value'
 import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
 
@@ -22,6 +23,11 @@ const IndexRoute = IndexRouteImport.update({
 const AccuracyRoute = AccuracyRouteImport.update({
   id: '/accuracy',
   path: '/accuracy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsRoute = NewsRouteImport.update({
+  id: '/news',
+  path: '/news',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ValueRoute = ValueRouteImport.update({
@@ -38,12 +44,14 @@ const MatchMatchIdRoute = MatchMatchIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accuracy': typeof AccuracyRoute
+  '/news': typeof NewsRoute
   '/value': typeof ValueRoute
   '/match/$matchId': typeof MatchMatchIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accuracy': typeof AccuracyRoute
+  '/news': typeof NewsRoute
   '/value': typeof ValueRoute
   '/match/$matchId': typeof MatchMatchIdRoute
 }
@@ -51,20 +59,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/accuracy': typeof AccuracyRoute
+  '/news': typeof NewsRoute
   '/value': typeof ValueRoute
   '/match/$matchId': typeof MatchMatchIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/accuracy' | '/value' | '/match/$matchId'
+  fullPaths: '/' | '/accuracy' | '/news' | '/value' | '/match/$matchId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/accuracy' | '/value' | '/match/$matchId'
-  id: '__root__' | '/' | '/accuracy' | '/value' | '/match/$matchId'
+  to: '/' | '/accuracy' | '/news' | '/value' | '/match/$matchId'
+  id: '__root__' | '/' | '/accuracy' | '/news' | '/value' | '/match/$matchId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccuracyRoute: typeof AccuracyRoute
+  NewsRoute: typeof NewsRoute
   ValueRoute: typeof ValueRoute
   MatchMatchIdRoute: typeof MatchMatchIdRoute
 }
@@ -83,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/accuracy'
       fullPath: '/accuracy'
       preLoaderRoute: typeof AccuracyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/news': {
+      id: '/news'
+      path: '/news'
+      fullPath: '/news'
+      preLoaderRoute: typeof NewsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/value': {
@@ -105,6 +122,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccuracyRoute: AccuracyRoute,
+  NewsRoute: NewsRoute,
   ValueRoute: ValueRoute,
   MatchMatchIdRoute: MatchMatchIdRoute,
 }

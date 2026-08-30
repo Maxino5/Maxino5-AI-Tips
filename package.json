@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "check:leagues": "node scripts/check-espn-leagues.mjs"
+    "check:leagues": "node scripts/check-espn-leagues.mjs",
+    "check:injuries": "node scripts/check-espn-injuries.mjs",
+    "check:match-extras": "node scripts/check-match-extras.mjs",
+    "check:news": "node scripts/check-news-feeds.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.20",

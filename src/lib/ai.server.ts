@@ -34,6 +34,7 @@ interface AnalyseArgs {
   awayTeam: string;
   kickoff: string | null;
   form: { home: TeamForm | null; away: TeamForm | null };
+  trends: { home: string[]; away: string[] };
   expectedHome: number;
   expectedAway: number;
   expectedCorners: number | null;
@@ -61,12 +62,22 @@ export async function analyseMatch(args: AnalyseArgs): Promise<Analysis | null> 
     )
     .join("\n");
 
+  const trendLines =
+    [...args.trends.home, ...args.trends.away].map((t) => `- ${t}`).join("\n") ||
+    "- No notable streaks or droughts on record for either side";
+
   const prompt = `Fixture: ${args.homeTeam} (home) vs ${args.awayTeam} (away)
 Competition: ${args.league} | Sport: ${args.sport} | Kickoff: ${args.kickoff ?? "TBC"}
 
 Recent form
 - ${args.homeTeam}: ${describeForm(args.form.home)}
 - ${args.awayTeam}: ${describeForm(args.form.away)}
+
+Verified recent-form facts (computed directly from match history — these are
+the ONLY specific claims you may make about either team's recent run; do not
+mention injuries, suspensions, transfers, lineups, or any other detail not
+listed here, since no such data was provided):
+${trendLines}
 
 Statistical model expectation
 - Expected ${args.sport === "basketball" ? "points" : "goals"}: home ${args.expectedHome}, away ${args.expectedAway}
@@ -75,14 +86,14 @@ ${args.expectedCorners ? `- Expected corners: ${args.expectedCorners}` : ""}
 Model probabilities by selection key:
 ${marketLines}
 
-Task: act as a quantitative sports trader. Adjust the model probabilities where the form data, home advantage, competition context or scheduling suggest the pure Poisson/normal model is off. Keep adjustments disciplined: rarely move a probability by more than 12 percentage points, and keep mutually exclusive selections roughly summing to 100%. Return probabilities as decimals between 0.02 and 0.97 using the exact selection keys given. Pick one bestBetKey: the selection with the strongest edge and reasonable probability. confidence is 0-100. headline is under 70 characters. reasoning is 2-3 sentences of concrete analysis, no hedging boilerplate, no betting advice disclaimers.`;
+Task: act as a quantitative sports trader. Adjust the model probabilities where the form data, home advantage, competition context or scheduling suggest the pure Poisson/normal model is off. Keep adjustments disciplined: rarely move a probability by more than 12 percentage points, and keep mutually exclusive selections roughly summing to 100%. Return probabilities as decimals between 0.02 and 0.97 using the exact selection keys given. Pick one bestBetKey: the selection with the strongest edge and reasonable probability. confidence is 0-100. headline is under 70 characters. reasoning is 2-3 sentences written like a match-preview blurb, grounded specifically in the verified facts above (cite the actual numbers, e.g. "just 1 goal in 5") rather than generic hedging — but never invent a fact not given.`;
 
   try {
     const { output } = await generateText({
       model: gateway("google/gemini-3.6-flash"),
       output: Output.object({ schema: AnalysisSchema }),
       system:
-        "You are PitchIQ's prediction engine: a disciplined quantitative football and basketball analyst. You output calibrated probabilities, never certainties.",
+        "You are PitchIQ's prediction engine: a disciplined quantitative football and basketball analyst. You output calibrated probabilities, never certainties. You never invent facts (injuries, transfers, lineups) beyond what's explicitly given to you.",
       prompt,
     });
     return output;

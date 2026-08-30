@@ -1,11 +1,17 @@
 import { runModel, normaliseMarket, fairOdds } from "./model.server";
-import { fetchEventsByDay, fetchMatchContext as fetchEspnMatchContext } from "./espn.server";
+import {
+  fetchEventsByDay,
+  fetchMatchContext as fetchEspnMatchContext,
+  fetchTeamCardHistory,
+} from "./espn.server";
 import {
   fetchSportsDbEventsByDay,
   fetchSportsDbMatchContext,
   isSportsDbMatchId,
 } from "./thesportsdb.server";
 import { mergeMatchSources } from "./match-dedupe";
+import { deriveTrends } from "./trends.server";
+import { parseMatchId } from "./match-id";
 import { analyseMatch } from "./ai.server";
 import type { AccuracyReport, Market, Match, Prediction, Sport, ValuePick } from "./types";
 import type { MatchContext } from "./espn.server";
@@ -54,8 +60,33 @@ export async function buildPrediction(matchId: string): Promise<Prediction | nul
   if (!context) return null;
   const { match, home, away } = context;
 
-  const model = runModel({ sport: match.sport, home: home.results, away: away.results });
+  // Card history needs one extra request per historical match, so it's only
+  // ever fetched here — for the single match someone actually opened — never
+  // for the daily list, value picks, or the accuracy backtest. Only
+  // available for ESPN-sourced matches (TheSportsDB doesn't expose it).
+  let cards: { home: number[]; away: number[] } | undefined;
+  if (!isSportsDbMatchId(matchId) && match.sport === "football" && home.teamId && away.teamId) {
+    const parsed = parseMatchId(matchId);
+    const league = parsed?.league ?? "";
+    const [homeCards, awayCards] = await Promise.all([
+      fetchTeamCardHistory(match.sport, league, home.teamId).catch(() => []),
+      fetchTeamCardHistory(match.sport, league, away.teamId).catch(() => []),
+    ]);
+    if (homeCards.length && awayCards.length) cards = { home: homeCards, away: awayCards };
+  }
+
+  const model = runModel({
+    sport: match.sport,
+    home: home.results,
+    away: away.results,
+    ...(cards ? { cards } : {}),
+  });
   let markets = model.markets.map(normaliseMarket);
+
+  const trends = {
+    home: deriveTrends(match.homeTeam, home.results),
+    away: deriveTrends(match.awayTeam, away.results),
+  };
 
   const analysis = await analyseMatch({
     sport: match.sport,
@@ -64,6 +95,7 @@ export async function buildPrediction(matchId: string): Promise<Prediction | nul
     awayTeam: match.awayTeam,
     kickoff: match.kickoff,
     form: { home: home.form, away: away.form },
+    trends,
     expectedHome: model.expectedHome,
     expectedAway: model.expectedAway,
     expectedCorners: model.expectedCorners,
@@ -96,6 +128,12 @@ export async function buildPrediction(matchId: string): Promise<Prediction | nul
     ),
   );
 
+  const fallbackReasoning = () => {
+    const bits = [...trends.home, ...trends.away];
+    if (bits.length) return `${bits.join(". ")}.`;
+    return `Built from recent scoring rates: ${match.homeTeam} project ${model.expectedHome} and ${match.awayTeam} ${model.expectedAway}. Probabilities come from a Poisson/normal simulation of that expectation.`;
+  };
+
   const prediction: Prediction = {
     matchId,
     sport: match.sport,
@@ -113,9 +151,8 @@ export async function buildPrediction(matchId: string): Promise<Prediction | nul
     confidence,
     headline:
       analysis?.headline ?? (best ? `${best.s.label} looks the standout call` : "Balanced matchup"),
-    reasoning:
-      analysis?.reasoning ??
-      `Built from recent scoring rates: ${match.homeTeam} project ${model.expectedHome} and ${match.awayTeam} ${model.expectedAway}. Probabilities come from a Poisson/normal simulation of that expectation.`,
+    reasoning: analysis?.reasoning ?? fallbackReasoning(),
+    trends,
     bestBet: best
       ? { market: best.m.name, label: best.s.label, probability: best.s.probability }
       : { market: "Match Result", label: "No edge", probability: 0.33 },

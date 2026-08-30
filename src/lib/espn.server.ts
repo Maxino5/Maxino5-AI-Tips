@@ -384,6 +384,15 @@ interface EspnSummary {
       awayTeamScore?: string;
     }[];
   }[];
+  // Confirmed present via scripts/check-match-extras.mjs against live data:
+  // rosters[].roster[].plays[].{yellowCard,redCard} are real booleans.
+  // Team identification on the roster entry itself isn't fully confirmed,
+  // so lookup below tries a couple of shapes defensively.
+  rosters?: {
+    team?: { id?: string };
+    homeAway?: string;
+    roster?: { plays?: { yellowCard?: boolean; redCard?: boolean }[] }[];
+  }[];
 }
 
 async function fetchSummary(
@@ -399,6 +408,7 @@ async function fetchSummary(
 
 interface EspnSchedule {
   events?: {
+    id?: string;
     date?: string;
     competitions?: {
       status?: { type?: { completed?: boolean } };
@@ -433,6 +443,62 @@ async function fetchTeamSchedule(
   return out.slice(-8);
 }
 
+function findRosterForTeam(summary: EspnSummary, teamId: string, homeAway: "home" | "away") {
+  const rosters = summary.rosters ?? [];
+  return (
+    rosters.find((r) => r.team?.id === teamId) ??
+    rosters.find((r) => r.homeAway === homeAway) ??
+    null
+  );
+}
+
+function countCards(roster: NonNullable<EspnSummary["rosters"]>[number]): number {
+  let count = 0;
+  for (const player of roster.roster ?? []) {
+    for (const play of player.plays ?? []) {
+      if (play.yellowCard) count++;
+      if (play.redCard) count++;
+    }
+  }
+  return count;
+}
+
+/** Real per-match card counts for a team's last few completed matches.
+ *  Deliberately not called from the daily list, value picks, or accuracy
+ *  backtest — each call here needs one full match-summary request per past
+ *  match, so it's reserved for the single-match prediction page only. */
+export async function fetchTeamCardHistory(
+  sport: Sport,
+  league: string,
+  teamId: string,
+  beforeDate?: string,
+  limit = 5,
+): Promise<number[]> {
+  const data = await cachedJson<EspnSchedule>(
+    `${BASE}/${SPORT_PATH[sport]}/${league}/teams/${teamId}/schedule`,
+    30 * 60 * 1000,
+  );
+  const pastMatches: { id: string; homeAway: "home" | "away" }[] = [];
+  for (const e of data?.events ?? []) {
+    const comp = e.competitions?.[0];
+    if (!comp?.status?.type?.completed || !e.id) continue;
+    const date = (e.date ?? "").slice(0, 10);
+    if (beforeDate && date >= beforeDate) continue;
+    const me = comp.competitors?.find((c) => (c.team?.id ?? c.id) === teamId);
+    if (!me) continue;
+    pastMatches.push({ id: e.id, homeAway: me.homeAway === "home" ? "home" : "away" });
+  }
+
+  const recent = pastMatches.slice(-limit);
+  const counts = await mapWithConcurrency(recent, 3, async (m) => {
+    const summary = await fetchSummary(sport, league, m.id);
+    if (!summary) return null;
+    const roster = findRosterForTeam(summary, teamId, m.homeAway);
+    return roster ? countCards(roster) : null;
+  });
+  return counts.filter((c): c is number => c !== null);
+}
+
 function resultsFromLastFive(
   summary: EspnSummary,
   teamId: string,
@@ -454,8 +520,8 @@ function resultsFromLastFive(
 
 export interface MatchContext {
   match: Match;
-  home: { form: TeamForm; results: PastResult[] };
-  away: { form: TeamForm; results: PastResult[] };
+  home: { form: TeamForm; results: PastResult[]; teamId: string | null };
+  away: { form: TeamForm; results: PastResult[]; teamId: string | null };
 }
 
 export async function fetchMatchContext(
@@ -524,7 +590,15 @@ export async function fetchMatchContext(
 
   return {
     match,
-    home: { form: formFrom(match.homeTeam, homeResults), results: homeResults },
-    away: { form: formFrom(match.awayTeam, awayResults), results: awayResults },
+    home: {
+      form: formFrom(match.homeTeam, homeResults),
+      results: homeResults,
+      teamId: homeId ?? null,
+    },
+    away: {
+      form: formFrom(match.awayTeam, awayResults),
+      results: awayResults,
+      teamId: awayId ?? null,
+    },
   };
 }

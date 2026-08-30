@@ -232,7 +232,7 @@ export async function fetchSportsDbMatchContext(
 
   return {
     match,
-    home: { form: formFrom(match.homeTeam, homeResults), results: homeResults },
-    away: { form: formFrom(match.awayTeam, awayResults), results: awayResults },
+    home: { form: formFrom(match.homeTeam, homeResults), results: homeResults, teamId: null },
+    away: { form: formFrom(match.awayTeam, awayResults), results: awayResults, teamId: null },
   };
 }

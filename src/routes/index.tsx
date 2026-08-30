@@ -1,26 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useMemo, useState } from "react";
 import { SiteShell } from "@/components/site-shell";
 import { MatchCard } from "@/components/match-card";
 import { FeaturedMatch } from "@/components/featured-match";
 import { MatchGridSkeleton, DayStatsSkeleton } from "@/components/match-card-skeleton";
 import { LeagueFilter, summariseLeagues } from "@/components/league-filter";
-import { getDailyMatches } from "@/lib/predictions.functions";
+import { matchesQuery, today } from "@/lib/matches-query";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { pickFeaturedMatch, marqueeRank } from "@/lib/featured-match";
 import type { Match, Sport } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ArrowUpDown, Search } from "lucide-react";
-
-const today = () => new Date().toISOString().slice(0, 10);
-
-const matchesQuery = (date: string, sport: Sport) =>
-  queryOptions({
-    queryKey: ["matches", date, sport],
-    queryFn: () => getDailyMatches({ data: { date, sport } }),
-    staleTime: 3 * 60 * 1000,
-  });
 
 export const Route = createFileRoute("/")({
   head: () => ({

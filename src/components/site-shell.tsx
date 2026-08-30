@@ -8,6 +8,7 @@ const nav = [
   { to: "/", label: "Today's card" },
   { to: "/value", label: "Value picks" },
   { to: "/accuracy", label: "Track record" },
+  { to: "/news", label: "Sport News" },
 ];
 
 function todayLine() {
@@ -26,7 +27,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
             <Link to="/" className="group">
               <span className="font-display text-[2.75rem] leading-[0.85] tracking-wide sm:text-6xl">
-                Maxino5 AI Tips
+                Max AI Tips
               </span>
             </Link>
             <p className="mb-1 font-serif text-xs italic text-muted-foreground sm:text-sm">
@@ -65,7 +66,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
       <footer className="mt-16 border-t-4 border-foreground bg-surface">
         <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
           <div className="flex flex-wrap items-baseline justify-between gap-4">
-            <span className="font-display text-2xl tracking-wide">Maxino5 AI Tips</span>
+            <span className="font-display text-2xl tracking-wide">Max AI Tips</span>
             <span className="eyebrow text-[11px] text-muted-foreground">Est. this season</span>
           </div>
           <p className="mt-3 max-w-2xl font-serif text-sm leading-relaxed text-muted-foreground">

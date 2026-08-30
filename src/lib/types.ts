@@ -64,6 +64,7 @@ export interface Prediction {
   confidence: number;
   headline: string;
   reasoning: string;
+  trends: { home: string[]; away: string[] };
   bestBet: { market: string; label: string; probability: number };
   markets: Market[];
   form: { home: TeamForm | null; away: TeamForm | null };
@@ -93,4 +94,15 @@ export interface AccuracyReport {
     score: string;
     picks: { market: string; label: string; probability: number; hit: boolean }[];
   }[];
+}
+
+export interface NewsItem {
+  id: string;
+  title: string;
+  link: string;
+  description: string;
+  thumbnail: string | null;
+  source: string;
+  category: string;
+  publishedAt: string | null;
 }

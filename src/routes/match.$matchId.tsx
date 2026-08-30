@@ -160,6 +160,22 @@ function MatchPage() {
             {data.reasoning}
           </p>
         </blockquote>
+
+        {data.trends.home.length || data.trends.away.length ? (
+          <div className="mt-4">
+            <p className="eyebrow text-[10px] text-muted-foreground">
+              Key trends · computed from real results, not AI-generated
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              {[...data.trends.home, ...data.trends.away].map((fact) => (
+                <li key={fact} className="flex gap-2 font-serif text-sm leading-snug">
+                  <span className="text-primary">•</span>
+                  {fact}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </section>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2">

@@ -41,6 +41,13 @@ export interface ModelInput {
   sport: Sport;
   home: PastResult[];
   away: PastResult[];
+  /** Optional: each team's card count in their last few matches. Only
+   *  provided for the single-match prediction page (fetching this needs an
+   *  extra request per historical match, so it's deliberately not computed
+   *  for bulk views like the daily list, value picks, or the accuracy
+   *  backtest). When absent, the Bookings market is simply omitted rather
+   *  than guessed. */
+  cards?: { home: number[]; away: number[] };
 }
 
 export interface ModelOutput {
@@ -51,7 +58,11 @@ export interface ModelOutput {
   dataQuality: number; // 0..1
 }
 
-function footballModel(home: PastResult[], away: PastResult[]): ModelOutput {
+function footballModel(
+  home: PastResult[],
+  away: PastResult[],
+  cards?: { home: number[]; away: number[] },
+): ModelOutput {
   const homeAttack = mean(
     home.map((r) => r.scored),
     LEAGUE_AVG_GOALS,
@@ -108,6 +119,18 @@ function footballModel(home: PastResult[], away: PastResult[]): ModelOutput {
   const cornerSd = 3.1;
   const cornersOver = (line: number) => 1 - normalCdf(line, expectedCorners, cornerSd);
 
+  // Draw No Bet: stake refunded on a draw, so it's just Home/Away rescaled
+  // to exclude the draw probability entirely.
+  const dnbHome = pHome + pAway > 0 ? pHome / (pHome + pAway) : 0.5;
+
+  // Per-team goal totals, straight from each side's own Poisson distribution
+  // — no new data needed, since the model already computes lh/la separately.
+  const teamOver = (lambda: number, line: number) => {
+    let cum = 0;
+    for (let k = 0; k <= Math.floor(line); k++) cum += poisson(k, lambda);
+    return 1 - cum;
+  };
+
   const markets: Market[] = [
     {
       id: "1x2",
@@ -117,6 +140,12 @@ function footballModel(home: PastResult[], away: PastResult[]): ModelOutput {
         sel("1x2:draw", "Draw", pDraw),
         sel("1x2:away", "Away Win", pAway),
       ],
+    },
+    {
+      id: "dnb",
+      name: "Draw No Bet",
+      note: "Stake refunded if the match is drawn",
+      selections: [sel("dnb:home", "Home Win", dnbHome), sel("dnb:away", "Away Win", 1 - dnbHome)],
     },
     {
       id: "dc",
@@ -137,6 +166,24 @@ function footballModel(home: PastResult[], away: PastResult[]): ModelOutput {
       ]),
     },
     {
+      id: "home_goals",
+      name: "Home Team Goals",
+      note: `Model expects ${lh.toFixed(2)}`,
+      selections: [0.5, 1.5].flatMap((line) => [
+        sel(`home_goals:o${line}`, `Over ${line}`, teamOver(lh, line)),
+        sel(`home_goals:u${line}`, `Under ${line}`, 1 - teamOver(lh, line)),
+      ]),
+    },
+    {
+      id: "away_goals",
+      name: "Away Team Goals",
+      note: `Model expects ${la.toFixed(2)}`,
+      selections: [0.5, 1.5].flatMap((line) => [
+        sel(`away_goals:o${line}`, `Over ${line}`, teamOver(la, line)),
+        sel(`away_goals:u${line}`, `Under ${line}`, 1 - teamOver(la, line)),
+      ]),
+    },
+    {
       id: "btts",
       name: "Both Teams To Score",
       selections: [sel("btts:yes", "Yes", bttsYes), sel("btts:no", "No", 1 - bttsYes)],
@@ -152,12 +199,40 @@ function footballModel(home: PastResult[], away: PastResult[]): ModelOutput {
     },
   ];
 
+  const cardsMarket = buildCardsMarket(cards);
+  if (cardsMarket) markets.push(cardsMarket);
+
   return {
     expectedHome: Math.round(lh * 100) / 100,
     expectedAway: Math.round(la * 100) / 100,
     expectedCorners: Math.round(expectedCorners * 10) / 10,
     markets,
     dataQuality: Math.min(1, (home.length + away.length) / 10),
+  };
+}
+
+/** Bookings (cards) over/under — only built when real per-match card counts
+ *  were actually fetched for both teams (see ModelInput.cards). Never
+ *  guessed from goals data; if we don't have real card history, this market
+ *  simply doesn't appear rather than showing a fabricated number. */
+function buildCardsMarket(cards?: { home: number[]; away: number[] }): Market | null {
+  if (!cards || !cards.home.length || !cards.away.length) return null;
+  const LEAGUE_AVG_CARDS = 2.1;
+  const avgHome = mean(cards.home, LEAGUE_AVG_CARDS);
+  const avgAway = mean(cards.away, LEAGUE_AVG_CARDS);
+  const expectedTotal = avgHome + avgAway;
+  const cardsSd = 1.8;
+  const over = (line: number) => 1 - normalCdf(line, expectedTotal, cardsSd);
+  const lines = [3.5, 4.5, 5.5];
+
+  return {
+    id: "cards",
+    name: "Total Bookings",
+    note: `Model expects ${expectedTotal.toFixed(1)} cards, from last ${cards.home.length}/${cards.away.length} matches`,
+    selections: lines.flatMap((line) => [
+      sel(`cards:o${line}`, `Over ${line}`, over(line)),
+      sel(`cards:u${line}`, `Under ${line}`, 1 - over(line)),
+    ]),
   };
 }
 
@@ -257,13 +332,22 @@ function basketballModel(home: PastResult[], away: PastResult[]): ModelOutput {
   };
 }
 
-export function runModel({ sport, home, away }: ModelInput): ModelOutput {
-  return sport === "basketball" ? basketballModel(home, away) : footballModel(home, away);
+export function runModel({ sport, home, away, cards }: ModelInput): ModelOutput {
+  return sport === "basketball" ? basketballModel(home, away) : footballModel(home, away, cards);
 }
 
 /** Re-normalise a probability set so mutually exclusive options sum to 1. */
 export function normaliseMarket(m: Market): Market {
-  if (m.id === "goals" || m.id === "points" || m.id === "corners" || m.id === "dc") return m;
+  const OVER_UNDER_STYLE = new Set([
+    "goals",
+    "points",
+    "corners",
+    "dc",
+    "home_goals",
+    "away_goals",
+    "cards",
+  ]);
+  if (OVER_UNDER_STYLE.has(m.id)) return m;
   const sum = m.selections.reduce((a, s) => a + s.probability, 0);
   if (sum <= 0) return m;
   return {
