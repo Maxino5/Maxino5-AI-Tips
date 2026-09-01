@@ -21,7 +21,8 @@ export function FeaturedMatch({ match }: { match: Match }) {
           </span>
           {isLive ? (
             <span className="live-dot flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-destructive">
-              <span className="size-2 rounded-full bg-destructive" /> Live now
+              <span className="size-2 rounded-full bg-destructive" />{" "}
+              {match.liveMinute ? `Live · ${match.liveMinute}` : "Live now"}
             </span>
           ) : match.kickoff && !isFinished ? (
             <KickoffCountdown

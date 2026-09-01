@@ -13,7 +13,10 @@
     "check:leagues": "node scripts/check-espn-leagues.mjs",
     "check:injuries": "node scripts/check-espn-injuries.mjs",
     "check:match-extras": "node scripts/check-match-extras.mjs",
-    "check:news": "node scripts/check-news-feeds.mjs"
+    "check:news": "node scripts/check-news-feeds.mjs",
+    "check:standings-h2h": "node scripts/check-standings-h2h.mjs",
+    "check:basketball-leagues": "node scripts/check-basketball-leagues.mjs",
+    "check:details-round2": "node scripts/check-details-round2.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.20",

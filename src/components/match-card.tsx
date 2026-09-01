@@ -33,7 +33,7 @@ export function MatchCard({ match, index = 0 }: { match: Match; index?: number }
           <span className="live-dot flex items-center gap-1 [writing-mode:vertical-rl]">
             <span className="size-1.5 shrink-0 rounded-full bg-destructive" />
             <span className="rotate-180 font-mono text-[10px] font-bold uppercase tracking-widest text-destructive">
-              Live
+              {match.liveMinute ?? "Live"}
             </span>
           </span>
         ) : (

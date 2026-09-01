@@ -1,4 +1,4 @@
-import type { Match, Sport, TeamForm } from "./types";
+import type { Match, Sport, TeamForm, StandingsRow, H2HMeeting } from "./types";
 import { makeMatchId, parseMatchId } from "./match-id";
 
 /**
@@ -244,7 +244,10 @@ interface EspnEvent {
     id: string;
     date: string;
     venue?: { fullName?: string };
-    status?: { type?: { state?: string; completed?: boolean } };
+    status?: {
+      displayClock?: string;
+      type?: { state?: string; completed?: boolean; shortDetail?: string; detail?: string };
+    };
     competitors?: EspnCompetitor[];
   }[];
 }
@@ -288,6 +291,10 @@ function mapEvent(
   const completed = comp?.status?.type?.completed ?? e.status?.type?.completed;
   const status: Match["status"] =
     completed || state === "post" ? "finished" : state === "in" ? "live" : "upcoming";
+  const liveMinute =
+    status === "live"
+      ? (comp?.status?.displayClock ?? comp?.status?.type?.shortDetail ?? null)
+      : null;
 
   return {
     id: makeMatchId(sport, league, e.id),
@@ -305,6 +312,7 @@ function mapEvent(
     homeScore: scoreOf(home),
     awayScore: scoreOf(away),
     venue: comp?.venue?.fullName ?? null,
+    liveMinute,
   };
 }
 
@@ -368,7 +376,10 @@ interface EspnSummary {
     competitions?: {
       date?: string;
       venue?: { fullName?: string };
-      status?: { type?: { state?: string; completed?: boolean } };
+      status?: {
+        displayClock?: string;
+        type?: { state?: string; completed?: boolean; shortDetail?: string };
+      };
       competitors?: EspnCompetitor[];
     }[];
     league?: { name?: string; slug?: string; logos?: { href: string }[] };
@@ -392,6 +403,22 @@ interface EspnSummary {
     team?: { id?: string };
     homeAway?: string;
     roster?: { plays?: { yellowCard?: boolean; redCard?: boolean }[] }[];
+  }[];
+  // Confirmed live: an array with a "head-to-head" entry containing the last
+  // 5 all-competition meetings between these two teams, each with real
+  // dates/scores/competition names — not just a summary string.
+  seasonseries?: {
+    type?: string;
+    events?: {
+      id?: string;
+      date?: string;
+      competitionName?: string;
+      competitors?: {
+        homeAway?: "home" | "away";
+        team?: { displayName?: string };
+        score?: string;
+      }[];
+    }[];
   }[];
 }
 
@@ -441,6 +468,92 @@ async function fetchTeamSchedule(
     out.push({ date, isHome: me?.homeAway === "home", scored: mine, conceded: theirs });
   }
   return out.slice(-8);
+}
+
+interface EspnStandingsStat {
+  name?: string;
+  value?: number;
+  displayValue?: string;
+}
+
+interface EspnStandingsEntry {
+  team?: {
+    id?: string;
+    displayName?: string;
+    logos?: { href: string }[];
+  };
+  note?: { description?: string; color?: string };
+  stats?: EspnStandingsStat[];
+}
+
+interface EspnStandingsResponse {
+  standings?: { entries?: EspnStandingsEntry[] };
+  children?: { name?: string; standings?: { entries?: EspnStandingsEntry[] } }[];
+}
+
+function statValue(stats: EspnStandingsStat[] | undefined, name: string): number | null {
+  const stat = stats?.find((s) => s.name === name);
+  return stat?.value ?? null;
+}
+
+function mapStandingsEntry(e: EspnStandingsEntry, group: string | null): StandingsRow | null {
+  if (!e.team?.id || !e.team.displayName) return null;
+  return {
+    teamId: e.team.id,
+    team: e.team.displayName,
+    badge: e.team.logos?.[0]?.href ?? null,
+    played: statValue(e.stats, "gamesPlayed"),
+    won: statValue(e.stats, "wins"),
+    drawn: statValue(e.stats, "ties"),
+    lost: statValue(e.stats, "losses"),
+    goalDiff: statValue(e.stats, "pointDifferential"),
+    points: statValue(e.stats, "points"),
+    rank: null,
+    note: e.note?.description
+      ? { description: e.note.description, color: e.note.color ?? "#999" }
+      : null,
+    group,
+  };
+}
+
+/** Real league table. Note the /apis/v2/ path — /apis/site/v2/ returns an
+ *  empty stub for soccer standings specifically (confirmed live, not from
+ *  memory). Basketball/other sports aren't wired up here yet. */
+export async function fetchStandings(league: string): Promise<StandingsRow[] | null> {
+  const url = `https://site.api.espn.com/apis/v2/sports/soccer/${league}/standings`;
+  const data = await cachedJson<EspnStandingsResponse>(url, 15 * 60 * 1000);
+  if (!data) return null;
+
+  const rows: StandingsRow[] = [];
+  if (data.children?.length) {
+    for (const child of data.children) {
+      for (const e of child.standings?.entries ?? []) {
+        const row = mapStandingsEntry(e, child.name ?? null);
+        if (row) rows.push(row);
+      }
+    }
+  } else {
+    for (const e of data.standings?.entries ?? []) {
+      const row = mapStandingsEntry(e, null);
+      if (row) rows.push(row);
+    }
+  }
+  if (!rows.length) return null;
+
+  // Rank within each group by points (ESPN's own order is usually already
+  // this, but computing it ourselves means it's always correct even if a
+  // group comes back in a different order).
+  const byGroup = new Map<string | null, StandingsRow[]>();
+  for (const r of rows) {
+    const arr = byGroup.get(r.group) ?? [];
+    arr.push(r);
+    byGroup.set(r.group, arr);
+  }
+  for (const arr of byGroup.values()) {
+    arr.sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || (b.goalDiff ?? 0) - (a.goalDiff ?? 0));
+    arr.forEach((r, i) => (r.rank = i + 1));
+  }
+  return rows;
 }
 
 function findRosterForTeam(summary: EspnSummary, teamId: string, homeAway: "home" | "away") {
@@ -518,10 +631,35 @@ function resultsFromLastFive(
   return out;
 }
 
+function extractHeadToHead(summary: EspnSummary | null): H2HMeeting[] {
+  const series = summary?.seasonseries?.find((s) => s.type === "head-to-head");
+  const out: H2HMeeting[] = [];
+  for (const ev of series?.events ?? []) {
+    const home = ev.competitors?.find((c) => c.homeAway === "home");
+    const away = ev.competitors?.find((c) => c.homeAway === "away");
+    const homeScore = Number(home?.score);
+    const awayScore = Number(away?.score);
+    if (!ev.id || !home?.team?.displayName || !away?.team?.displayName) continue;
+    if (Number.isNaN(homeScore) || Number.isNaN(awayScore)) continue;
+    out.push({
+      id: ev.id,
+      date: ev.date ?? "",
+      competition: ev.competitionName ?? "",
+      homeTeam: home.team.displayName,
+      awayTeam: away.team.displayName,
+      homeScore,
+      awayScore,
+    });
+  }
+  // Most recent first.
+  return out.sort((a, b) => b.date.localeCompare(a.date));
+}
+
 export interface MatchContext {
   match: Match;
   home: { form: TeamForm; results: PastResult[]; teamId: string | null };
   away: { form: TeamForm; results: PastResult[]; teamId: string | null };
+  headToHead: H2HMeeting[];
 }
 
 export async function fetchMatchContext(
@@ -566,6 +704,10 @@ export async function fetchMatchContext(
       homeScore: scoreOf(homeC),
       awayScore: scoreOf(awayC),
       venue: comp?.venue?.fullName ?? null,
+      liveMinute:
+        state === "in"
+          ? (comp?.status?.displayClock ?? comp?.status?.type?.shortDetail ?? null)
+          : null,
     };
   }
   if (!match) return null;
@@ -600,5 +742,6 @@ export async function fetchMatchContext(
       results: awayResults,
       teamId: awayId ?? null,
     },
+    headToHead: extractHeadToHead(summary),
   };
 }

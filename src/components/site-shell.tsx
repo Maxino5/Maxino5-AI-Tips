@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { BetSlip } from "./bet-slip-panel";
 import { ThemeToggle } from "./theme-toggle";
 import { CommandPalette } from "./command-palette";
+import { SupportButton } from "./support-button";
 
 const nav = [
   { to: "/", label: "Today's card" },
@@ -22,6 +23,11 @@ function todayLine() {
 export function SiteShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen">
+      <div className="border-b border-border bg-surface-strong">
+        <div className="mx-auto flex max-w-6xl justify-end px-4 py-1.5 sm:px-6">
+          <SupportButton />
+        </div>
+      </div>
       <header className="border-b-4 border-foreground bg-surface">
         <div className="mx-auto max-w-6xl px-4 pb-3 pt-6 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">

@@ -3,6 +3,7 @@ import {
   fetchEventsByDay,
   fetchMatchContext as fetchEspnMatchContext,
   fetchTeamCardHistory,
+  fetchStandings,
 } from "./espn.server";
 import {
   fetchSportsDbEventsByDay,
@@ -58,7 +59,16 @@ export async function buildPrediction(matchId: string): Promise<Prediction | nul
 
   const context = await fetchMatchContext(matchId);
   if (!context) return null;
-  const { match, home, away } = context;
+  const { match, home, away, headToHead } = context;
+
+  // Standings only exist for football, and only for ESPN-sourced matches.
+  let standings: Awaited<ReturnType<typeof fetchStandings>> = null;
+  if (!isSportsDbMatchId(matchId) && match.sport === "football") {
+    const parsedForStandings = parseMatchId(matchId);
+    if (parsedForStandings) {
+      standings = await fetchStandings(parsedForStandings.league).catch(() => null);
+    }
+  }
 
   // Card history needs one extra request per historical match, so it's only
   // ever fetched here — for the single match someone actually opened — never
@@ -145,6 +155,10 @@ export async function buildPrediction(matchId: string): Promise<Prediction | nul
     league: match.league,
     venue: match.venue,
     kickoff: match.kickoff,
+    status: match.status,
+    homeScore: match.homeScore,
+    awayScore: match.awayScore,
+    liveMinute: match.liveMinute,
     expectedHome: model.expectedHome,
     expectedAway: model.expectedAway,
     expectedCorners: model.expectedCorners,
@@ -158,6 +172,8 @@ export async function buildPrediction(matchId: string): Promise<Prediction | nul
       : { market: "Match Result", label: "No edge", probability: 0.33 },
     markets,
     form: { home: home.form, away: away.form },
+    standings,
+    headToHead,
     aiEnhanced: Boolean(analysis),
   };
 

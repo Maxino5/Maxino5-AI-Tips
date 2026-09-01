@@ -139,6 +139,7 @@ function mapEvent(ev: SportsDbEvent, sport: Sport): Match | null {
     homeScore: scoreOf(ev.intHomeScore),
     awayScore: scoreOf(ev.intAwayScore),
     venue: ev.strVenue ?? null,
+    liveMinute: null,
   };
 }
 
@@ -234,5 +235,6 @@ export async function fetchSportsDbMatchContext(
     match,
     home: { form: formFrom(match.homeTeam, homeResults), results: homeResults, teamId: null },
     away: { form: formFrom(match.awayTeam, awayResults), results: awayResults, teamId: null },
+    headToHead: [],
   };
 }

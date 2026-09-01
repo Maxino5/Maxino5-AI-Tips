@@ -18,6 +18,9 @@ export interface Match {
   homeScore: number | null;
   awayScore: number | null;
   venue: string | null;
+  /** e.g. "34'" or "HT" while live; null otherwise. Best-effort — not every
+   *  source provides this, so it may be null even for a live match. */
+  liveMinute: string | null;
 }
 
 export interface Selection {
@@ -58,6 +61,10 @@ export interface Prediction {
   league: string;
   venue: string | null;
   kickoff: string | null;
+  status: MatchStatus;
+  homeScore: number | null;
+  awayScore: number | null;
+  liveMinute: string | null;
   expectedHome: number;
   expectedAway: number;
   expectedCorners: number | null;
@@ -68,6 +75,8 @@ export interface Prediction {
   bestBet: { market: string; label: string; probability: number };
   markets: Market[];
   form: { home: TeamForm | null; away: TeamForm | null };
+  standings: StandingsRow[] | null;
+  headToHead: H2HMeeting[];
   aiEnhanced: boolean;
 }
 
@@ -105,4 +114,30 @@ export interface NewsItem {
   source: string;
   category: string;
   publishedAt: string | null;
+}
+
+export interface StandingsRow {
+  teamId: string;
+  team: string;
+  badge: string | null;
+  played: number | null;
+  won: number | null;
+  drawn: number | null;
+  lost: number | null;
+  goalDiff: number | null;
+  points: number | null;
+  rank: number | null;
+  /** e.g. "Champions League" / "Relegation" zone coloring ESPN provides */
+  note: { description: string; color: string } | null;
+  group: string | null;
+}
+
+export interface H2HMeeting {
+  id: string;
+  date: string;
+  competition: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeScore: number;
+  awayScore: number;
 }

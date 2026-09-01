@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { downloadFixtureIcs } from "@/lib/ics";
 import { TeamBadge } from "@/components/team-badge";
+import { StandingsTable } from "@/components/standings-table";
+import { HeadToHead } from "@/components/head-to-head";
 
 const predictionQuery = (matchId: string) =>
   queryOptions({
@@ -127,6 +129,29 @@ function MatchPage() {
           <p className="mt-2 font-serif text-sm italic text-muted-foreground">{data.venue}</p>
         ) : null}
 
+        {data.status === "finished" ? (
+          <div className="mt-4 inline-flex items-center gap-3 border-2 border-foreground bg-surface-strong px-4 py-2">
+            <span className="eyebrow text-[10px] text-muted-foreground">Full time</span>
+            <span className="font-mono text-2xl font-bold tabular-nums">
+              {data.homeScore ?? 0}
+              <span className="mx-1.5 text-muted-foreground/50">–</span>
+              {data.awayScore ?? 0}
+            </span>
+          </div>
+        ) : data.status === "live" ? (
+          <div className="mt-4 inline-flex items-center gap-3 border-2 border-destructive bg-destructive/10 px-4 py-2">
+            <span className="live-dot flex items-center gap-1.5 eyebrow text-[10px] text-destructive">
+              <span className="size-1.5 rounded-full bg-destructive" />
+              {data.liveMinute ?? "Live"}
+            </span>
+            <span className="font-mono text-2xl font-bold tabular-nums">
+              {data.homeScore ?? 0}
+              <span className="mx-1.5 text-muted-foreground/50">–</span>
+              {data.awayScore ?? 0}
+            </span>
+          </div>
+        ) : null}
+
         <div className="mt-5 grid gap-px overflow-hidden border border-border bg-border sm:grid-cols-3">
           <Stat
             icon={<Target className="size-4" />}
@@ -182,6 +207,22 @@ function MatchPage() {
         <FormCard form={home} badge={data.homeBadge} unit={unit} side="Home" />
         <FormCard form={away} badge={data.awayBadge} unit={unit} side="Away" />
       </div>
+
+      {data.headToHead.length ? (
+        <div className="panel mt-6 p-4">
+          <h2 className="eyebrow mb-3 text-xs text-muted-foreground">
+            Head-to-head · last {data.headToHead.length} meetings
+          </h2>
+          <HeadToHead meetings={data.headToHead} />
+        </div>
+      ) : null}
+
+      {data.standings?.length ? (
+        <div className="panel mt-6 p-4">
+          <h2 className="eyebrow mb-3 text-xs text-muted-foreground">{data.league} table</h2>
+          <StandingsTable rows={data.standings} highlight={[data.homeTeam, data.awayTeam]} />
+        </div>
+      ) : null}
 
       <h2 className="eyebrow mb-3 mt-8 border-b border-border pb-2 text-xs text-muted-foreground">
         All markets · probability rating
