@@ -50,7 +50,7 @@ export function SupportButton() {
               <p>{SUPPORT_DETAILS.accountNumber}</p>
             </div>
             <p className="mt-3 text-[11px] text-muted-foreground">
-              (Placeholder details — the site owner hasn't added the real account yet.)
+              (The site owner has not added real account yet.)
             </p>
           </div>
         </div>
