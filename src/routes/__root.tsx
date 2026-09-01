@@ -14,6 +14,7 @@ import { BetSlipProvider } from "../lib/bet-slip";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "../components/ui/sonner";
 import { themeInitScript } from "../lib/theme";
+import { Analytics } from '@vercel/analytics/react';
 
 const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect width="64" height="64" rx="10" fill="#23321f"/>
@@ -87,14 +88,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "PitchIQ — AI Football & Basketball Predictions" },
+      { title: "Max AI Tips — AI Football & Basketball Predictions" },
       {
         name: "description",
         content:
           "Daily football and basketball predictions with probability ratings for 1X2, double chance, goals, corners and totals.",
       },
-      { name: "author", content: "PitchIQ" },
-      { property: "og:title", content: "PitchIQ — AI Football & Basketball Predictions" },
+      { name: "author", content: "Max AI Tips" },
+      { property: "og:title", content: "Max AI Tips — AI Football & Basketball Predictions" },
       {
         property: "og:description",
         content:
@@ -148,6 +149,7 @@ function RootComponent() {
         <Outlet />
       </BetSlipProvider>
       <Toaster position="bottom-left" />
+      <Analytics />
     </QueryClientProvider>
   );
 }
