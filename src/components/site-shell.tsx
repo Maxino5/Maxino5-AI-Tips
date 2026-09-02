@@ -23,11 +23,6 @@ function todayLine() {
 export function SiteShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen">
-      <div className="border-b border-border bg-surface-strong">
-        <div className="mx-auto flex max-w-6xl justify-end px-4 py-1.5 sm:px-6">
-          <SupportButton />
-        </div>
-      </div>
       <header className="border-b-4 border-foreground bg-surface">
         <div className="mx-auto max-w-6xl px-4 pb-3 pt-6 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
@@ -36,9 +31,12 @@ export function SiteShell({ children }: { children: ReactNode }) {
                 Max AI Tips
               </span>
             </Link>
-            <p className="mb-1 font-serif text-xs italic text-muted-foreground sm:text-sm">
-              {todayLine()} · statistical model, checked by an AI analyst
-            </p>
+            <div className="mb-1 flex flex-col items-end gap-1">
+              <SupportButton />
+              <p className="font-serif text-xs italic text-muted-foreground sm:text-sm">
+                {todayLine()} · statistical model, checked by an AI analyst
+              </p>
+            </div>
           </div>
         </div>
         <div className="border-t border-border">

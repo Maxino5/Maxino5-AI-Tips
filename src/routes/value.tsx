@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
+import { useSuspenseQuery, useQuery, queryOptions } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { SiteShell } from "@/components/site-shell";
-import { getValuePicks } from "@/lib/predictions.functions";
+import { getValuePicks, getAccuracyReport } from "@/lib/predictions.functions";
 import type { Sport } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -14,25 +14,56 @@ const valueQuery = queryOptions({
   staleTime: 10 * 60 * 1000,
 });
 
+const accuracyQuery = queryOptions({
+  queryKey: ["accuracy"],
+  queryFn: () => getAccuracyReport(),
+  staleTime: 30 * 60 * 1000,
+});
+
 export const Route = createFileRoute("/value")({
   head: () => ({
     meta: [
-      { title: "Value Picks of the Day | PitchIQ" },
+      { title: "Value Picks of the Day | Max AI Tips" },
       {
         name: "description",
         content:
           "The highest-confidence football and basketball selections of the day, ranked by model probability and data quality.",
       },
-      { property: "og:title", content: "Value Picks of the Day | PitchIQ" },
+      { property: "og:title", content: "Value Picks of the Day | Max AI Tips" },
       {
         property: "og:description",
         content: "Today's strongest model-rated selections across football and basketball.",
       },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(valueQuery),
+  loader: ({ context }) => {
+    context.queryClient.prefetchQuery(accuracyQuery);
+    return context.queryClient.ensureQueryData(valueQuery);
+  },
   component: ValuePage,
 });
+
+function TrackRecordStrip() {
+  const { data, isLoading } = useQuery(accuracyQuery);
+
+  if (isLoading || !data || !data.sampleSize) return null;
+
+  return (
+    <Link
+      to="/accuracy"
+      className="mt-4 flex items-center justify-between gap-3 border border-border bg-surface-strong/40 px-4 py-2.5 transition-colors hover:border-primary/50"
+    >
+      <span className="text-xs text-muted-foreground">
+        Track record:{" "}
+        <span className="font-mono font-semibold text-primary">
+          {(data.overall * 100).toFixed(0)}%
+        </span>{" "}
+        hit rate over the last {data.windowDays} days, {data.sampleSize} picks settled
+      </span>
+      <span className="shrink-0 text-xs font-semibold text-primary">Full breakdown →</span>
+    </Link>
+  );
+}
 
 function ValuePage() {
   const { data } = useSuspenseQuery(valueQuery);
@@ -71,6 +102,8 @@ function ValuePage() {
             </button>
           ))}
         </div>
+
+        <TrackRecordStrip />
       </header>
 
       {!filtered.length ? (

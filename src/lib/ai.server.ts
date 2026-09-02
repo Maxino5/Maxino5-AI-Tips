@@ -107,16 +107,17 @@ ${args.expectedCorners ? `- Expected corners: ${args.expectedCorners}` : ""}
 Model probabilities by selection key:
 ${marketLines}
 
-Task: act as a quantitative sports trader. Adjust the model probabilities where the form data, home advantage, competition context or scheduling suggest the pure Poisson/normal model is off. Keep adjustments disciplined: rarely move a probability by more than 12 percentage points, and keep mutually exclusive selections roughly summing to 100%. Return probabilities as decimals between 0.02 and 0.97 using the exact selection keys given. Pick one bestBetKey: the selection with the strongest edge and reasonable probability. confidence is 0-100. headline is under 70 characters. reasoning is 2-3 sentences written like a match-preview blurb, grounded specifically in the verified facts above (cite the actual numbers, e.g. "just 1 goal in 5") rather than generic hedging — but never invent a fact not given.
+Task: act as a quantitative sports trader. Adjust the model probabilities where the form data, home advantage, competition context or scheduling suggest the pure Poisson/normal model is off. Keep adjustments disciplined: rarely move a probability by more than 12 percentage points, and keep mutually exclusive selections roughly summing to 100%. Return probabilities as decimals between 0.02 and 0.97 using the exact selection keys given. Pick one bestBetKey: the selection with the strongest edge and reasonable probability. confidence is 0-100. headline is under 70 characters. reasoning is 2-3 sentences written like a match-preview blurb, grounded specifically in the verified facts above (cite the actual numbers, e.g. "just 1 goal in 5") rather than generic hedging — but never invent a fact not given. For adjustments, list AT MOST 3 selections total — only the ones with a genuinely meaningful edge, not every market. Keep the whole response compact; do not pad it.
 
-Respond with ONLY a single raw JSON object — no markdown code fences, no commentary before or after, no explanation. Exactly this shape:
-{"headline": string, "reasoning": string, "confidence": number, "bestBetKey": string, "adjustments": [{"key": string, "probability": number}, ...]}`;
+Respond with ONLY a single raw JSON object — no markdown code fences, no commentary before or after, no explanation. Exactly this shape, with "reasoning" written BEFORE "adjustments" so it's never the part that gets cut off if you run long:
+{"headline": string, "confidence": number, "bestBetKey": string, "reasoning": string, "adjustments": [{"key": string, "probability": number}, ...] (at most 3 items)}`;
 
   try {
     const { text } = await generateText({
       model,
+      maxOutputTokens: 1500,
       system:
-        "You are PitchIQ's prediction engine: a disciplined quantitative football and basketball analyst. You output calibrated probabilities, never certainties. You never invent facts (injuries, transfers, lineups) beyond what's explicitly given to you. You always respond with raw JSON only — never markdown, never prose outside the JSON object.",
+        "You are the prediction engine for Max AI Tips: a disciplined quantitative football and basketball analyst. You output calibrated probabilities, never certainties. You never invent facts (injuries, transfers, lineups) beyond what's explicitly given to you. You always respond with raw JSON only — never markdown, never prose outside the JSON object.",
       prompt,
     });
 

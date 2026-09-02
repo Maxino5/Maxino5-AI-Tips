@@ -24,7 +24,7 @@ const newsQuery = (category: NewsFilter) =>
 export const Route = createFileRoute("/news")({
   head: () => ({
     meta: [
-      { title: "Sport News | PitchIQ" },
+      { title: "Sport News | Max AI Tips" },
       {
         name: "description",
         content: "The latest sport headlines from BBC Sport, refreshed automatically.",

@@ -182,7 +182,7 @@ export async function buildPrediction(matchId: string): Promise<Prediction | nul
 }
 
 /** Fast, AI-free ranking used for the "value picks" strip. */
-export async function buildValuePicks(date: string, limit = 6): Promise<ValuePick[]> {
+export async function buildValuePicks(date: string, limit = 15): Promise<ValuePick[]> {
   const tomorrow = new Date(`${date}T00:00:00Z`);
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
   const nextDay = tomorrow.toISOString().slice(0, 10);
@@ -198,7 +198,7 @@ export async function buildValuePicks(date: string, limit = 6): Promise<ValuePic
     upcoming.length
       ? upcoming
       : [...footballNext, ...basketballNext].filter((m) => m.status !== "finished")
-  ).slice(0, 18);
+  ).slice(0, 45);
 
   const picks = await Promise.all(
     pool.map(async (match): Promise<ValuePick | null> => {

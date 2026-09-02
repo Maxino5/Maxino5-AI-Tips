@@ -14,13 +14,13 @@ const accuracyQuery = queryOptions({
 export const Route = createFileRoute("/accuracy")({
   head: () => ({
     meta: [
-      { title: "Prediction Accuracy Tracker | PitchIQ" },
+      { title: "Prediction Accuracy Tracker | Max AI Tips" },
       {
         name: "description",
         content:
-          "Rolling backtest of the PitchIQ model: hit rate by market, sport and confidence band across recently finished football and basketball matches.",
+          "Rolling backtest of the Max AI Tips model: hit rate by market, sport and confidence band across recently finished football and basketball matches.",
       },
-      { property: "og:title", content: "Prediction Accuracy Tracker | PitchIQ" },
+      { property: "og:title", content: "Prediction Accuracy Tracker | Max AI Tips" },
       {
         property: "og:description",
         content: "Transparent hit rates per market from a rolling backtest on finished fixtures.",

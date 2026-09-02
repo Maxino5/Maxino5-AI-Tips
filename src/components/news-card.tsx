@@ -65,7 +65,7 @@ export function NewsCard({
           className="ticket-divider flex items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-surface-strong/60"
         >
           <span className="truncate">
-            On PitchIQ: {related.homeTeam} vs {related.awayTeam}
+            On Max AI Tips: {related.homeTeam} vs {related.awayTeam}
           </span>
           <ArrowRight className="size-3.5 shrink-0" />
         </Link>

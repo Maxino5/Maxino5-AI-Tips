@@ -24,7 +24,7 @@ export function downloadFixtureIcs(opts: {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//PitchIQ//Fixture//EN",
+    "PRODID:-//Max AI Tips//Fixture//EN",
     "BEGIN:VEVENT",
     `UID:${opts.matchId}@pitchiq`,
     `DTSTAMP:${toIcsDate(new Date().toISOString())}`,
@@ -32,7 +32,7 @@ export function downloadFixtureIcs(opts: {
     `DTEND:${end}`,
     `SUMMARY:${escapeText(title)}`,
     `DESCRIPTION:${escapeText(
-      `${opts.league ?? "Fixture"} — probabilities and prediction on PitchIQ.`,
+      `${opts.league ?? "Fixture"} — probabilities and prediction on Max AI Tips.`,
     )}`,
     opts.venue ? `LOCATION:${escapeText(opts.venue)}` : null,
     "END:VEVENT",

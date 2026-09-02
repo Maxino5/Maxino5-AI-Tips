@@ -16,13 +16,13 @@ import { ArrowUpDown, Search } from "lucide-react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "PitchIQ — Football & Basketball Predictions" },
+      { title: "Max AI Tips — Football & Basketball Predictions" },
       {
         name: "description",
         content:
           "Daily football and basketball fixtures with probability ratings for 1X2, double chance, goals, corners and totals.",
       },
-      { property: "og:title", content: "PitchIQ — Football & Basketball Predictions" },
+      { property: "og:title", content: "Max AI Tips — Football & Basketball Predictions" },
       {
         property: "og:description",
         content:
@@ -34,14 +34,34 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
+function isoDate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
 function Home() {
   const [sport, setSport] = useState<Sport>("football");
-  const [offset, setOffset] = useState(0);
+  const [date, setDate] = useState(() => isoDate(new Date()));
 
-  const date = (() => {
-    const d = new Date();
-    d.setUTCDate(d.getUTCDate() + offset);
-    return d.toISOString().slice(0, 10);
+  const shiftDate = (days: number) => {
+    const d = new Date(`${date}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + days);
+    setDate(isoDate(d));
+  };
+
+  const todayIso = isoDate(new Date());
+  const dayLabel = (() => {
+    if (date === todayIso) return "Today";
+    const diffDays = Math.round(
+      (new Date(`${date}T00:00:00Z`).getTime() - new Date(`${todayIso}T00:00:00Z`).getTime()) /
+        86_400_000,
+    );
+    if (diffDays === -1) return "Yesterday";
+    if (diffDays === 1) return "Tomorrow";
+    return new Date(`${date}T00:00:00Z`).toLocaleDateString(undefined, {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
   })();
 
   return (
@@ -82,26 +102,44 @@ function Home() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1 text-sm">
-          {[
-            { o: -1, l: "Yesterday" },
-            { o: 0, l: "Today" },
-            { o: 1, l: "Tomorrow" },
-          ].map((d) => (
+        <div className="flex flex-wrap items-center gap-1 text-sm">
+          <button
+            type="button"
+            onClick={() => shiftDate(-1)}
+            className="border-b-2 border-transparent px-2 py-1.5 font-medium text-muted-foreground hover:text-foreground"
+            aria-label="Previous day"
+          >
+            ←
+          </button>
+          <span className="border-b-2 border-primary px-2.5 py-1.5 font-medium text-foreground">
+            {dayLabel}
+          </span>
+          <button
+            type="button"
+            onClick={() => shiftDate(1)}
+            className="border-b-2 border-transparent px-2 py-1.5 font-medium text-muted-foreground hover:text-foreground"
+            aria-label="Next day"
+          >
+            →
+          </button>
+          <label className="ml-2 flex items-center">
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => e.target.value && setDate(e.target.value)}
+              className="rounded-sm border border-border bg-surface px-2 py-1 font-mono text-xs outline-none focus:border-primary"
+              aria-label="Pick any date"
+            />
+          </label>
+          {date !== todayIso ? (
             <button
-              key={d.o}
               type="button"
-              onClick={() => setOffset(d.o)}
-              className={cn(
-                "border-b-2 px-2.5 py-1.5 font-medium transition-colors",
-                offset === d.o
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
+              onClick={() => setDate(todayIso)}
+              className="px-2 py-1.5 text-xs text-muted-foreground underline hover:text-foreground"
             >
-              {d.l}
+              Back to today
             </button>
-          ))}
+          ) : null}
         </div>
       </div>
 

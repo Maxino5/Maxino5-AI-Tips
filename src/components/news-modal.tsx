@@ -60,7 +60,7 @@ export function NewsModal({
               className="mt-4 flex items-center justify-between gap-2 rounded-sm border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/15"
             >
               <span>
-                See PitchIQ's prediction: {related.homeTeam} vs {related.awayTeam}
+                See Max AI Tips's prediction: {related.homeTeam} vs {related.awayTeam}
               </span>
               <ArrowRight className="size-4 shrink-0" />
             </Link>

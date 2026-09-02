@@ -22,13 +22,13 @@ const predictionQuery = (matchId: string) =>
 export const Route = createFileRoute("/match/$matchId")({
   head: () => ({
     meta: [
-      { title: "Match prediction & probabilities | PitchIQ" },
+      { title: "Match prediction & probabilities | Max AI Tips" },
       {
         name: "description",
         content:
           "Full prediction breakdown: match result, double chance, over/under goals, corners and totals with probability ratings.",
       },
-      { property: "og:title", content: "Match prediction & probabilities | PitchIQ" },
+      { property: "og:title", content: "Match prediction & probabilities | Max AI Tips" },
       {
         property: "og:description",
         content: "Every market for this fixture, priced with a calibrated probability rating.",
@@ -67,7 +67,7 @@ function MatchPage() {
   const share = () => {
     const url = window.location.href;
     if (navigator.share) {
-      navigator.share({ title: "PitchIQ prediction", url }).catch(() => {});
+      navigator.share({ title: "Max AI Tips prediction", url }).catch(() => {});
       return;
     }
     navigator.clipboard
