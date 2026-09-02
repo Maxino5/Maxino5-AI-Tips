@@ -39,10 +39,9 @@ export function SupportButton() {
               </button>
             </div>
             <p className="mt-2 font-serif text-sm leading-relaxed text-muted-foreground">
-              Max AI Tips is, and will stay, completely free, no login, no subscription. If you've found
-              it useful and want to help cover hosting costs, that's genuinely appreciated, You can support
-              the site by sending a small donation to the account below. Thank you for your support!.
-              
+              Max AI Tips is, and will stay, completely free — no login, no paywall. If you've found
+              it useful and want to help cover hosting costs, that's genuinely appreciated, but
+              entirely optional. This is not tied to any bet's outcome.
             </p>
             <div className="ticket-divider mt-4 space-y-1.5 pt-4 font-mono text-sm">
               <p>{SUPPORT_DETAILS.provider}</p>
@@ -50,7 +49,7 @@ export function SupportButton() {
               <p>{SUPPORT_DETAILS.accountNumber}</p>
             </div>
             <p className="mt-3 text-[11px] text-muted-foreground">
-              (The site owner has not added the real account yet.)
+              (Placeholder details — the site owner hasn't added the real account yet.)
             </p>
           </div>
         </div>

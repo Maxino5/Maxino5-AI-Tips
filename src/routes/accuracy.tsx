@@ -105,43 +105,54 @@ function AccuracyPage() {
 
       <section className="mt-8 space-y-2">
         <h2 className="eyebrow border-b border-border pb-2 text-xs text-muted-foreground">
-          Settled fixtures
+          Settled fixtures · Value Pick per match
         </h2>
         {!data.recent.length ? (
           <p className="panel mt-4 p-10 text-center font-serif text-sm text-muted-foreground">
             Not enough completed fixtures with prior form data in this window yet.
           </p>
         ) : (
-          data.recent.map((r) => (
-            <div key={r.matchId} className="panel mt-3 p-4">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <div>
-                  <p className="eyebrow text-[10px] text-muted-foreground">
-                    {r.league} · {r.date}
-                  </p>
-                  <p className="text-sm font-semibold">{r.fixture}</p>
+          <>
+            <p className="panel flex items-center justify-between p-3 text-sm">
+              <span className="text-muted-foreground">Overall Value Pick record this window</span>
+              <span className="font-mono font-bold">
+                {data.recent.filter((r) => r.picks[0]?.hit).length}/{data.recent.length}
+              </span>
+            </p>
+            {data.recent.map((r) => (
+              <div key={r.matchId} className="panel mt-3 p-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <div>
+                    <p className="eyebrow text-[10px] text-muted-foreground">
+                      {r.league} · {r.date}
+                    </p>
+                    <p className="text-sm font-semibold">{r.fixture}</p>
+                  </div>
+                  <span className="font-mono text-lg font-bold">{r.score}</span>
                 </div>
-                <span className="font-mono text-lg font-bold">{r.score}</span>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {r.picks.map((p) => (
+                    <span
+                      key={p.market + p.label}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-sm border px-3 py-1 text-xs",
+                        p.hit
+                          ? "border-primary/40 bg-primary/10 text-primary"
+                          : "border-destructive/40 bg-destructive/10 text-destructive",
+                      )}
+                    >
+                      {p.hit ? <Check className="size-3" /> : <X className="size-3" />}
+                      {p.label}
+                      <span className="text-muted-foreground/70">({p.market})</span>
+                      <span className="font-mono opacity-70">
+                        {Math.round(p.probability * 100)}%
+                      </span>
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {r.picks.map((p) => (
-                  <span
-                    key={p.market + p.label}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-sm border px-3 py-1 text-xs",
-                      p.hit
-                        ? "border-primary/40 bg-primary/10 text-primary"
-                        : "border-destructive/40 bg-destructive/10 text-destructive",
-                    )}
-                  >
-                    {p.hit ? <Check className="size-3" /> : <X className="size-3" />}
-                    {p.label}
-                    <span className="font-mono opacity-70">{Math.round(p.probability * 100)}%</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))
+            ))}
+          </>
         )}
       </section>
     </SiteShell>

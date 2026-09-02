@@ -3,6 +3,7 @@ import {
   fetchEventsByDay,
   fetchMatchContext as fetchEspnMatchContext,
   fetchTeamCardHistory,
+  fetchMatchCardTotal,
   fetchStandings,
 } from "./espn.server";
 import {
@@ -210,7 +211,7 @@ export async function buildValuePicks(date: string, limit = 15): Promise<ValuePi
       const flat = model.markets
         .map(normaliseMarket)
         .flatMap((m) => m.selections.map((s) => ({ m, s })))
-        .filter((f) => f.s.probability < 0.9)
+        .filter((f) => f.s.probability < 0.9 && !UNGRADABLE_MARKETS.has(f.m.id))
         .sort((a, b) => b.s.probability - a.s.probability);
       const top = flat[0];
       if (!top) return null;
@@ -238,6 +239,12 @@ const MARKET_LABELS: Record<string, string> = {
   points: "Total Points",
 };
 
+// Corners has no real final-result data available anywhere in either source
+// (see scripts/check-corners.mjs) — excluding it from ever being chosen as
+// "the" pick for a match keeps every shown pick gradable. If that ever
+// changes, remove it here and add a settle() case for it.
+const UNGRADABLE_MARKETS = new Set(["corners"]);
+
 function settle(key: string, hs: number, as: number): boolean | null {
   const [market, option] = key.split(":");
   const total = hs + as;
@@ -245,6 +252,11 @@ function settle(key: string, hs: number, as: number): boolean | null {
     if (option === "home") return hs > as;
     if (option === "away") return as > hs;
     if (option === "draw") return hs === as;
+  }
+  if (market === "dnb") {
+    if (hs === as) return null; // push/void — a draw refunds the stake, neither a win nor a loss
+    if (option === "home") return hs > as;
+    if (option === "away") return as > hs;
   }
   if (market === "dc") {
     if (option === "1x") return hs >= as;
@@ -256,11 +268,25 @@ function settle(key: string, hs: number, as: number): boolean | null {
     if (Number.isNaN(line)) return null;
     return option?.startsWith("o") ? total > line : total < line;
   }
+  if (market === "home_goals" || market === "away_goals") {
+    const line = Number(option?.slice(1));
+    if (Number.isNaN(line)) return null;
+    const score = market === "home_goals" ? hs : as;
+    return option?.startsWith("o") ? score > line : score < line;
+  }
   if (market === "btts") {
     const yes = hs > 0 && as > 0;
     return option === "yes" ? yes : !yes;
   }
   return null; // corners / spreads not verifiable from the free feed
+}
+
+function settleCards(key: string, actualTotal: number): boolean | null {
+  const [market, option] = key.split(":");
+  if (market !== "cards") return null;
+  const line = Number(option?.slice(1));
+  if (Number.isNaN(line)) return null;
+  return option?.startsWith("o") ? actualTotal > line : actualTotal < line;
 }
 
 /**
@@ -303,8 +329,10 @@ export async function buildAccuracyReport(windowDays = 5): Promise<AccuracyRepor
     if (home.results.length + away.results.length < 1) continue;
 
     const model = runModel({ sport: match.sport, home: home.results, away: away.results });
-    const picks: AccuracyReport["recent"][number]["picks"] = [];
 
+    // Aggregate breakdown charts (By market / By confidence / By sport)
+    // still check EVERY settleable market's top pick — that's genuinely
+    // useful diagnostic detail and doesn't cost extra requests.
     for (const market of model.markets.map(normaliseMarket)) {
       const top = [...market.selections].sort((a, b) => b.probability - a.probability)[0];
       if (!top) continue;
@@ -328,18 +356,68 @@ export async function buildAccuracyReport(windowDays = 5): Promise<AccuracyRepor
       confBucket.total += 1;
       if (hit) confBucket.hits += 1;
       byConfidence.set(band, confBucket);
-
-      picks.push({ market: label, label: top.label, probability: top.probability, hit });
     }
 
-    if (picks.length) {
+    // "Settled fixtures" list, on the other hand, shows only the ONE
+    // selection that would have been THIS match's Value Pick — same
+    // candidate logic buildValuePicks itself uses — so the two features
+    // stay in sync instead of being two separate scorecards.
+    const candidates = model.markets
+      .map(normaliseMarket)
+      .flatMap((m) => m.selections.map((s) => ({ m, s })))
+      .filter((f) => f.s.probability < 0.9 && !UNGRADABLE_MARKETS.has(f.m.id))
+      .sort((a, b) => b.s.probability - a.s.probability);
+
+    const parsedId = parseMatchId(match.id);
+    let valuePick: {
+      label: string;
+      marketLabel: string;
+      probability: number;
+      hit: boolean;
+    } | null = null;
+
+    for (const candidate of candidates) {
+      const marketLabel = MARKET_LABELS[candidate.m.id] ?? candidate.m.name;
+      let hit: boolean | null;
+
+      if (candidate.m.id === "cards") {
+        if (isSportsDbMatchId(match.id) || !parsedId) continue;
+        const total = await fetchMatchCardTotal(
+          match.sport,
+          parsedId.league,
+          parsedId.eventId,
+        ).catch(() => null);
+        if (total === null) continue;
+        hit = settleCards(candidate.s.key, total);
+      } else {
+        hit = settle(candidate.s.key, match.homeScore ?? 0, match.awayScore ?? 0);
+      }
+
+      if (hit === null) continue;
+      valuePick = {
+        label: candidate.s.label,
+        marketLabel,
+        probability: candidate.s.probability,
+        hit,
+      };
+      break; // first gradable candidate, in descending-probability order
+    }
+
+    if (valuePick) {
       recent.push({
         matchId: match.id,
         fixture: `${match.homeTeam} vs ${match.awayTeam}`,
         league: match.league,
         date: match.date,
         score: `${match.homeScore}-${match.awayScore}`,
-        picks,
+        picks: [
+          {
+            market: valuePick.marketLabel,
+            label: valuePick.label,
+            probability: valuePick.probability,
+            hit: valuePick.hit,
+          },
+        ],
       });
     }
   }

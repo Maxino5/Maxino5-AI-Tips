@@ -46,7 +46,8 @@ export const Route = createFileRoute("/value")({
 function TrackRecordStrip() {
   const { data, isLoading } = useQuery(accuracyQuery);
 
-  if (isLoading || !data || !data.sampleSize) return null;
+  if (isLoading || !data || !data.recent.length) return null;
+  const hits = data.recent.filter((r) => r.picks[0]?.hit).length;
 
   return (
     <Link
@@ -54,11 +55,11 @@ function TrackRecordStrip() {
       className="mt-4 flex items-center justify-between gap-3 border border-border bg-surface-strong/40 px-4 py-2.5 transition-colors hover:border-primary/50"
     >
       <span className="text-xs text-muted-foreground">
-        Track record:{" "}
+        Value Pick record:{" "}
         <span className="font-mono font-semibold text-primary">
-          {(data.overall * 100).toFixed(0)}%
+          {hits}/{data.recent.length}
         </span>{" "}
-        hit rate over the last {data.windowDays} days, {data.sampleSize} picks settled
+        over the last {data.windowDays} days
       </span>
       <span className="shrink-0 text-xs font-semibold text-primary">Full breakdown →</span>
     </Link>

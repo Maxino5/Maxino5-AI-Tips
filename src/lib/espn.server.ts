@@ -556,6 +556,28 @@ export async function fetchStandings(league: string): Promise<StandingsRow[] | n
   return rows;
 }
 
+/** The REAL final combined card total for one specific finished match — used
+ *  only to grade a settled Bookings pick, never for the pre-match market
+ *  estimate (that uses history via fetchTeamCardHistory instead). One extra
+ *  request, only ever called for the single match actually chosen as a
+ *  day's "value pick" — never in bulk across a whole backtest window. */
+export async function fetchMatchCardTotal(
+  sport: Sport,
+  league: string,
+  eventId: string,
+): Promise<number | null> {
+  const summary = await fetchSummary(sport, league, eventId);
+  if (!summary?.rosters?.length) return null;
+  let total = 0;
+  let found = false;
+  for (const roster of summary.rosters) {
+    if (!roster.roster) continue;
+    found = true;
+    total += countCards(roster);
+  }
+  return found ? total : null;
+}
+
 function findRosterForTeam(summary: EspnSummary, teamId: string, homeAway: "home" | "away") {
   const rosters = summary.rosters ?? [];
   return (
