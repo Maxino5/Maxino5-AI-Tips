@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccuracyRouteImport } from './routes/accuracy'
 import { Route as NewsRouteImport } from './routes/news'
 import { Route as ValueRouteImport } from './routes/value'
+import { Route as ApiDailyDigestRouteImport } from './routes/api/daily-digest'
 import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -35,6 +36,11 @@ const ValueRoute = ValueRouteImport.update({
   path: '/value',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDailyDigestRoute = ApiDailyDigestRouteImport.update({
+  id: '/api/daily-digest',
+  path: '/api/daily-digest',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MatchMatchIdRoute = MatchMatchIdRouteImport.update({
   id: '/match/$matchId',
   path: '/match/$matchId',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/accuracy': typeof AccuracyRoute
   '/news': typeof NewsRoute
   '/value': typeof ValueRoute
+  '/api/daily-digest': typeof ApiDailyDigestRoute
   '/match/$matchId': typeof MatchMatchIdRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/accuracy': typeof AccuracyRoute
   '/news': typeof NewsRoute
   '/value': typeof ValueRoute
+  '/api/daily-digest': typeof ApiDailyDigestRoute
   '/match/$matchId': typeof MatchMatchIdRoute
 }
 export interface FileRoutesById {
@@ -61,14 +69,34 @@ export interface FileRoutesById {
   '/accuracy': typeof AccuracyRoute
   '/news': typeof NewsRoute
   '/value': typeof ValueRoute
+  '/api/daily-digest': typeof ApiDailyDigestRoute
   '/match/$matchId': typeof MatchMatchIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/accuracy' | '/news' | '/value' | '/match/$matchId'
+  fullPaths:
+    | '/'
+    | '/accuracy'
+    | '/news'
+    | '/value'
+    | '/api/daily-digest'
+    | '/match/$matchId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/accuracy' | '/news' | '/value' | '/match/$matchId'
-  id: '__root__' | '/' | '/accuracy' | '/news' | '/value' | '/match/$matchId'
+  to:
+    | '/'
+    | '/accuracy'
+    | '/news'
+    | '/value'
+    | '/api/daily-digest'
+    | '/match/$matchId'
+  id:
+    | '__root__'
+    | '/'
+    | '/accuracy'
+    | '/news'
+    | '/value'
+    | '/api/daily-digest'
+    | '/match/$matchId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,6 +104,7 @@ export interface RootRouteChildren {
   AccuracyRoute: typeof AccuracyRoute
   NewsRoute: typeof NewsRoute
   ValueRoute: typeof ValueRoute
+  ApiDailyDigestRoute: typeof ApiDailyDigestRoute
   MatchMatchIdRoute: typeof MatchMatchIdRoute
 }
 
@@ -109,6 +138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ValueRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/daily-digest': {
+      id: '/api/daily-digest'
+      path: '/api/daily-digest'
+      fullPath: '/api/daily-digest'
+      preLoaderRoute: typeof ApiDailyDigestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/match/$matchId': {
       id: '/match/$matchId'
       path: '/match/$matchId'
@@ -124,6 +160,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccuracyRoute: AccuracyRoute,
   NewsRoute: NewsRoute,
   ValueRoute: ValueRoute,
+  ApiDailyDigestRoute: ApiDailyDigestRoute,
   MatchMatchIdRoute: MatchMatchIdRoute,
 }
 export const routeTree = rootRouteImport

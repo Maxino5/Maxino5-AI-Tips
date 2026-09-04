@@ -1,13 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { SiteShell } from "@/components/site-shell";
-import { getAccuracyReport } from "@/lib/predictions.functions";
+import { getAccuracyReport, getValuePickRecord } from "@/lib/predictions.functions";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const accuracyQuery = queryOptions({
   queryKey: ["accuracy"],
   queryFn: () => getAccuracyReport(),
+  staleTime: 30 * 60 * 1000,
+});
+
+const yesterday = () => {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+};
+
+const valuePickRecordQuery = queryOptions({
+  queryKey: ["value-pick-record", yesterday()],
+  queryFn: () => getValuePickRecord({ data: { date: yesterday() } }),
   staleTime: 30 * 60 * 1000,
 });
 
@@ -27,9 +39,72 @@ export const Route = createFileRoute("/accuracy")({
       },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(accuracyQuery),
+  loader: ({ context }) => {
+    context.queryClient.prefetchQuery(valuePickRecordQuery);
+    return context.queryClient.ensureQueryData(accuracyQuery);
+  },
   component: AccuracyPage,
 });
+
+function ValuePickRecordSection() {
+  const { data } = useSuspenseQuery(valuePickRecordQuery);
+
+  return (
+    <section id="value-pick-record" className="mt-6 scroll-mt-6">
+      <h2 className="eyebrow border-b border-border pb-2 text-xs text-muted-foreground">
+        Yesterday's Value Picks · {data.date}
+      </h2>
+      <p className="mt-2 font-serif text-xs italic leading-relaxed text-muted-foreground">
+        Reconstructed using only data available before those matches kicked off — this app has no
+        database, so it isn't a literal saved log of what was shown, but the ranking is
+        deterministic from the same data, so it should match almost exactly.
+      </p>
+      {!data.total ? (
+        <p className="panel mt-4 p-10 text-center font-serif text-sm text-muted-foreground">
+          Not enough graded picks from yesterday to show yet.
+        </p>
+      ) : (
+        <>
+          <p className="panel mt-4 flex items-center justify-between p-3 text-sm">
+            <span className="text-muted-foreground">Yesterday's Value Pick record</span>
+            <span className="font-mono font-bold">
+              {data.hits}/{data.total}
+            </span>
+          </p>
+          <div className="mt-2 space-y-2">
+            {data.picks.map((p) => (
+              <div
+                key={p.matchId}
+                className={cn(
+                  "panel flex items-center justify-between gap-3 p-3",
+                  p.hit ? "border-primary/30" : "border-destructive/30",
+                )}
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  {p.hit ? (
+                    <Check className="size-4 shrink-0 text-primary" />
+                  ) : (
+                    <X className="size-4 shrink-0 text-destructive" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{p.fixture}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {p.label} <span className="text-muted-foreground/70">({p.market})</span> ·{" "}
+                      {p.league}
+                    </p>
+                  </div>
+                </div>
+                <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                  {Math.round(p.probability * 100)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
 
 function AccuracyPage() {
   const { data } = useSuspenseQuery(accuracyQuery);
@@ -55,6 +130,8 @@ function AccuracyPage() {
           </div>
         </div>
       </header>
+
+      <ValuePickRecordSection />
 
       <div className="section-ornament my-6">
         <span className="section-ornament-line" />
@@ -102,59 +179,6 @@ function AccuracyPage() {
           />
         </div>
       ) : null}
-
-      <section className="mt-8 space-y-2">
-        <h2 className="eyebrow border-b border-border pb-2 text-xs text-muted-foreground">
-          Settled fixtures · Value Pick per match
-        </h2>
-        {!data.recent.length ? (
-          <p className="panel mt-4 p-10 text-center font-serif text-sm text-muted-foreground">
-            Not enough completed fixtures with prior form data in this window yet.
-          </p>
-        ) : (
-          <>
-            <p className="panel flex items-center justify-between p-3 text-sm">
-              <span className="text-muted-foreground">Overall Value Pick record this window</span>
-              <span className="font-mono font-bold">
-                {data.recent.filter((r) => r.picks[0]?.hit).length}/{data.recent.length}
-              </span>
-            </p>
-            {data.recent.map((r) => (
-              <div key={r.matchId} className="panel mt-3 p-4">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <div>
-                    <p className="eyebrow text-[10px] text-muted-foreground">
-                      {r.league} · {r.date}
-                    </p>
-                    <p className="text-sm font-semibold">{r.fixture}</p>
-                  </div>
-                  <span className="font-mono text-lg font-bold">{r.score}</span>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {r.picks.map((p) => (
-                    <span
-                      key={p.market + p.label}
-                      className={cn(
-                        "flex items-center gap-1.5 rounded-sm border px-3 py-1 text-xs",
-                        p.hit
-                          ? "border-primary/40 bg-primary/10 text-primary"
-                          : "border-destructive/40 bg-destructive/10 text-destructive",
-                      )}
-                    >
-                      {p.hit ? <Check className="size-3" /> : <X className="size-3" />}
-                      {p.label}
-                      <span className="text-muted-foreground/70">({p.market})</span>
-                      <span className="font-mono opacity-70">
-                        {Math.round(p.probability * 100)}%
-                      </span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-      </section>
     </SiteShell>
   );
 }

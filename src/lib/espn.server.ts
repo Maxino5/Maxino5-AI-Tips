@@ -99,6 +99,9 @@ const SOCCER_LEAGUES = [
   "nga.1",
 ] as const;
 
+// "nba-development" (G League) and "fiba" (World Cup) confirmed real via
+// scripts/check-basketball-leagues.mjs — 200 OK with real event data on
+// other days, just 0 events on the specific day first tested.
 const BASKETBALL_LEAGUES = [
   "nba",
   "wnba",
@@ -106,6 +109,8 @@ const BASKETBALL_LEAGUES = [
   "womens-college-basketball",
   "nba-summer-las-vegas",
   "nbl",
+  "nba-development",
+  "fiba",
 ] as const;
 
 const SPORT_PATH: Record<Sport, string> = {
@@ -182,7 +187,7 @@ async function fetchWithRetry(url: string, attempts = 2): Promise<Response | nul
 
 /** Runs `fn` over `items` with at most `limit` requests in flight at once,
  *  instead of firing every request simultaneously and tripping rate limits. */
-async function mapWithConcurrency<T, R>(
+export async function mapWithConcurrency<T, R>(
   items: readonly T[],
   limit: number,
   fn: (item: T) => Promise<R>,

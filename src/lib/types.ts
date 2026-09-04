@@ -88,6 +88,23 @@ export interface ValuePick {
   confidence: number;
 }
 
+export interface ValuePickRecordEntry {
+  matchId: string;
+  fixture: string;
+  league: string;
+  market: string;
+  label: string;
+  probability: number;
+  hit: boolean;
+}
+
+export interface ValuePickRecord {
+  date: string;
+  hits: number;
+  total: number;
+  picks: ValuePickRecordEntry[];
+}
+
 export interface AccuracyReport {
   windowDays: number;
   sampleSize: number;
@@ -95,14 +112,6 @@ export interface AccuracyReport {
   byMarket: { market: string; hits: number; total: number; accuracy: number }[];
   bySport: { sport: Sport; hits: number; total: number; accuracy: number }[];
   byConfidence: { band: string; hits: number; total: number; accuracy: number }[];
-  recent: {
-    matchId: string;
-    fixture: string;
-    league: string;
-    date: string;
-    score: string;
-    picks: { market: string; label: string; probability: number; hit: boolean }[];
-  }[];
 }
 
 export interface NewsItem {

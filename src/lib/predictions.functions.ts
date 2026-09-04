@@ -31,3 +31,10 @@ export const getAccuracyReport = createServerFn({ method: "GET" }).handler(async
   const { buildAccuracyReport } = await import("./predictions.server");
   return buildAccuracyReport(5);
 });
+
+export const getValuePickRecord = createServerFn({ method: "GET" })
+  .inputValidator((input: unknown) => z.object({ date: DateSchema }).parse(input))
+  .handler(async ({ data }) => {
+    const { buildValuePickRecord } = await import("./predictions.server");
+    return buildValuePickRecord(data.date);
+  });

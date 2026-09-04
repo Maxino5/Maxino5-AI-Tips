@@ -14,28 +14,11 @@ const CONFIRMED = [
   "womens-college-basketball",
   "nba-summer-las-vegas",
   "nbl",
+  "nba-development",
+  "fiba",
 ];
 
-const CANDIDATES = [
-  "euroleague-men",
-  "eurocup-men",
-  "spain.liga-acb",
-  "italy.lega-a",
-  "greece.hlbl",
-  "turkey.bsl",
-  "germany.bbl",
-  "france.lnb",
-  "australia.nbl1",
-  "china.cba",
-  "philippines.pba",
-  "argentina.la-liga",
-  "brazil.nbb",
-  "adriatic-league",
-  "vtb-united-league",
-  "israel.premier-league",
-  "fiba-world-cup",
-  "fiba-champions-league",
-];
+const CANDIDATES = ["mens-olympics-basketball", "womens-olympics-basketball"];
 
 async function check(league) {
   const url = `https://site.api.espn.com/apis/site/v2/sports/basketball/${league}/scoreboard?dates=${today}&limit=50`;

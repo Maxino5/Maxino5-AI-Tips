@@ -5,6 +5,7 @@ import {
   fetchTeamCardHistory,
   fetchMatchCardTotal,
   fetchStandings,
+  mapWithConcurrency,
 } from "./espn.server";
 import {
   fetchSportsDbEventsByDay,
@@ -15,7 +16,16 @@ import { mergeMatchSources } from "./match-dedupe";
 import { deriveTrends } from "./trends.server";
 import { parseMatchId } from "./match-id";
 import { analyseMatch } from "./ai.server";
-import type { AccuracyReport, Market, Match, Prediction, Sport, ValuePick } from "./types";
+import type {
+  AccuracyReport,
+  Market,
+  Match,
+  Prediction,
+  Sport,
+  ValuePick,
+  ValuePickRecord,
+  ValuePickRecordEntry,
+} from "./types";
 import type { MatchContext } from "./espn.server";
 
 const predictionCache = new Map<string, { value: Prediction; expires: number }>();
@@ -231,6 +241,91 @@ export async function buildValuePicks(date: string, limit = 15): Promise<ValuePi
     .slice(0, limit);
 }
 
+/** Reconstructs exactly what buildValuePicks would have shown on a specific
+ *  PAST date, then grades each of those picks against real results. Not a
+ *  literal saved record (this app has no database) — a faithful replay
+ *  using only data that existed before that day's matches kicked off
+ *  (fetchMatchContext's `beforeDate` prevents any leakage from results
+ *  after the fact). In the overwhelming majority of cases this matches what
+ *  a visitor actually saw that day, since the ranking logic is
+ *  deterministic given the same inputs. */
+export async function buildValuePickRecord(date: string, limit = 15): Promise<ValuePickRecord> {
+  const [football, basketball] = await Promise.all([
+    loadMatches(date, "football"),
+    loadMatches(date, "basketball"),
+  ]);
+  const pool = [...football, ...basketball].slice(0, 60);
+
+  const candidates = await Promise.all(
+    pool.map(async (match) => {
+      const context = await fetchMatchContext(match.id, date);
+      if (!context) return null;
+      const { home, away } = context;
+      if (home.results.length + away.results.length < 1) return null;
+      const model = runModel({ sport: match.sport, home: home.results, away: away.results });
+      const flat = model.markets
+        .map(normaliseMarket)
+        .flatMap((m) => m.selections.map((s) => ({ m, s })))
+        .filter((f) => f.s.probability < 0.9 && !UNGRADABLE_MARKETS.has(f.m.id))
+        .sort((a, b) => b.s.probability - a.s.probability);
+      const top = flat[0];
+      if (!top) return null;
+      return {
+        match,
+        marketId: top.m.id,
+        market: MARKET_LABELS[top.m.id] ?? top.m.name,
+        key: top.s.key,
+        label: top.s.label,
+        probability: top.s.probability,
+        confidence: Math.round(45 + model.dataQuality * 25 + top.s.probability * 25),
+      };
+    }),
+  );
+
+  const ranked = candidates
+    .filter((c): c is NonNullable<typeof c> => c !== null)
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, limit);
+
+  const picks: ValuePickRecordEntry[] = [];
+  for (const c of ranked) {
+    if (c.match.status !== "finished" || c.match.homeScore === null || c.match.awayScore === null) {
+      continue;
+    }
+
+    let hit: boolean | null;
+    if (c.marketId === "cards") {
+      const parsed = isSportsDbMatchId(c.match.id) ? null : parseMatchId(c.match.id);
+      if (!parsed) continue;
+      const total = await fetchMatchCardTotal(c.match.sport, parsed.league, parsed.eventId).catch(
+        () => null,
+      );
+      if (total === null) continue;
+      hit = settleCards(c.key, total);
+    } else {
+      hit = settle(c.key, c.match.homeScore, c.match.awayScore);
+    }
+    if (hit === null) continue;
+
+    picks.push({
+      matchId: c.match.id,
+      fixture: `${c.match.homeTeam} vs ${c.match.awayTeam}`,
+      league: c.match.league,
+      market: c.market,
+      label: c.label,
+      probability: c.probability,
+      hit,
+    });
+  }
+
+  return {
+    date,
+    hits: picks.filter((p) => p.hit).length,
+    total: picks.length,
+    picks,
+  };
+}
+
 const MARKET_LABELS: Record<string, string> = {
   "1x2": "Match Result",
   dc: "Double Chance",
@@ -302,14 +397,29 @@ export async function buildAccuracyReport(windowDays = 5): Promise<AccuracyRepor
     days.push(d.toISOString().slice(0, 10));
   }
 
-  const dayResults = await Promise.all(
-    days.flatMap((d) => [loadMatches(d, "football"), loadMatches(d, "basketball")]),
-  );
+  // This never calls the AI — only the free ESPN/TheSportsDB feeds and the
+  // statistical model — so a bigger sample doesn't touch the Groq quota at
+  // all. What it DOES cost is request volume and page-load time, which is
+  // why the per-match work below is concurrency-limited rather than one at
+  // a time. A fair cap PER DAY (not one global cutoff applied in day order)
+  // means a single busy day can't crowd out the rest of the window — with a
+  // global cutoff, one 50-fixture day could silently leave the other four
+  // days contributing nothing to this report at all.
+  const TOTAL_SAMPLE_CAP = 150;
+  const perDayCap = Math.ceil(TOTAL_SAMPLE_CAP / windowDays);
 
-  const finished = dayResults
-    .flat()
-    .filter((m) => m.status === "finished" && m.homeScore !== null && m.awayScore !== null)
-    .slice(0, 26);
+  const dayMatchLists = await Promise.all(
+    days.map(async (d) => {
+      const [football, basketball] = await Promise.all([
+        loadMatches(d, "football"),
+        loadMatches(d, "basketball"),
+      ]);
+      return [...football, ...basketball]
+        .filter((m) => m.status === "finished" && m.homeScore !== null && m.awayScore !== null)
+        .slice(0, perDayCap);
+    }),
+  );
+  const finished = dayMatchLists.flat();
 
   const byMarket = new Map<string, { hits: number; total: number }>();
   const bySport = new Map<Sport, { hits: number; total: number }>();
@@ -320,24 +430,23 @@ export async function buildAccuracyReport(windowDays = 5): Promise<AccuracyRepor
     { min: 0.8, max: 1.01, band: "80%+" },
   ];
   const byConfidence = new Map<string, { hits: number; total: number }>();
-  const recent: AccuracyReport["recent"] = [];
+  let sampleSize = 0;
 
-  for (const match of finished) {
-    const context = await fetchMatchContext(match.id, match.date);
-    if (!context) continue;
+  await mapWithConcurrency(finished, 10, async (match) => {
+    const context = await fetchMatchContext(match.id, match.date).catch(() => null);
+    if (!context) return;
     const { home, away } = context;
-    if (home.results.length + away.results.length < 1) continue;
+    if (home.results.length + away.results.length < 1) return;
 
     const model = runModel({ sport: match.sport, home: home.results, away: away.results });
+    let countedThisMatch = false;
 
-    // Aggregate breakdown charts (By market / By confidence / By sport)
-    // still check EVERY settleable market's top pick — that's genuinely
-    // useful diagnostic detail and doesn't cost extra requests.
     for (const market of model.markets.map(normaliseMarket)) {
       const top = [...market.selections].sort((a, b) => b.probability - a.probability)[0];
       if (!top) continue;
       const hit = settle(top.key, match.homeScore ?? 0, match.awayScore ?? 0);
       if (hit === null) continue;
+      countedThisMatch = true;
 
       const label = MARKET_LABELS[market.id] ?? market.name;
       const bucket = byMarket.get(label) ?? { hits: 0, total: 0 };
@@ -358,69 +467,8 @@ export async function buildAccuracyReport(windowDays = 5): Promise<AccuracyRepor
       byConfidence.set(band, confBucket);
     }
 
-    // "Settled fixtures" list, on the other hand, shows only the ONE
-    // selection that would have been THIS match's Value Pick — same
-    // candidate logic buildValuePicks itself uses — so the two features
-    // stay in sync instead of being two separate scorecards.
-    const candidates = model.markets
-      .map(normaliseMarket)
-      .flatMap((m) => m.selections.map((s) => ({ m, s })))
-      .filter((f) => f.s.probability < 0.9 && !UNGRADABLE_MARKETS.has(f.m.id))
-      .sort((a, b) => b.s.probability - a.s.probability);
-
-    const parsedId = parseMatchId(match.id);
-    let valuePick: {
-      label: string;
-      marketLabel: string;
-      probability: number;
-      hit: boolean;
-    } | null = null;
-
-    for (const candidate of candidates) {
-      const marketLabel = MARKET_LABELS[candidate.m.id] ?? candidate.m.name;
-      let hit: boolean | null;
-
-      if (candidate.m.id === "cards") {
-        if (isSportsDbMatchId(match.id) || !parsedId) continue;
-        const total = await fetchMatchCardTotal(
-          match.sport,
-          parsedId.league,
-          parsedId.eventId,
-        ).catch(() => null);
-        if (total === null) continue;
-        hit = settleCards(candidate.s.key, total);
-      } else {
-        hit = settle(candidate.s.key, match.homeScore ?? 0, match.awayScore ?? 0);
-      }
-
-      if (hit === null) continue;
-      valuePick = {
-        label: candidate.s.label,
-        marketLabel,
-        probability: candidate.s.probability,
-        hit,
-      };
-      break; // first gradable candidate, in descending-probability order
-    }
-
-    if (valuePick) {
-      recent.push({
-        matchId: match.id,
-        fixture: `${match.homeTeam} vs ${match.awayTeam}`,
-        league: match.league,
-        date: match.date,
-        score: `${match.homeScore}-${match.awayScore}`,
-        picks: [
-          {
-            market: valuePick.marketLabel,
-            label: valuePick.label,
-            probability: valuePick.probability,
-            hit: valuePick.hit,
-          },
-        ],
-      });
-    }
-  }
+    if (countedThisMatch) sampleSize += 1;
+  });
 
   const totals = [...byMarket.values()].reduce(
     (a, b) => ({ hits: a.hits + b.hits, total: a.total + b.total }),
@@ -429,7 +477,7 @@ export async function buildAccuracyReport(windowDays = 5): Promise<AccuracyRepor
 
   return {
     windowDays,
-    sampleSize: recent.length,
+    sampleSize,
     overall: totals.total ? totals.hits / totals.total : 0,
     byMarket: [...byMarket.entries()]
       .map(([market, v]) => ({
@@ -454,6 +502,5 @@ export async function buildAccuracyReport(windowDays = 5): Promise<AccuracyRepor
         accuracy: v.total ? v.hits / v.total : 0,
       };
     }).filter((b) => b.total > 0),
-    recent: recent.slice(0, 10),
   };
 }

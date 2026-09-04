@@ -2,11 +2,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, useQuery, queryOptions } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { SiteShell } from "@/components/site-shell";
-import { getValuePicks, getAccuracyReport } from "@/lib/predictions.functions";
+import { getValuePicks, getValuePickRecord } from "@/lib/predictions.functions";
 import type { Sport } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const today = () => new Date().toISOString().slice(0, 10);
+const yesterday = () => {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+};
 
 const valueQuery = queryOptions({
   queryKey: ["value-picks", today()],
@@ -14,9 +19,9 @@ const valueQuery = queryOptions({
   staleTime: 10 * 60 * 1000,
 });
 
-const accuracyQuery = queryOptions({
-  queryKey: ["accuracy"],
-  queryFn: () => getAccuracyReport(),
+const valuePickRecordQuery = queryOptions({
+  queryKey: ["value-pick-record", yesterday()],
+  queryFn: () => getValuePickRecord({ data: { date: yesterday() } }),
   staleTime: 30 * 60 * 1000,
 });
 
@@ -37,29 +42,28 @@ export const Route = createFileRoute("/value")({
     ],
   }),
   loader: ({ context }) => {
-    context.queryClient.prefetchQuery(accuracyQuery);
+    context.queryClient.prefetchQuery(valuePickRecordQuery);
     return context.queryClient.ensureQueryData(valueQuery);
   },
   component: ValuePage,
 });
 
 function TrackRecordStrip() {
-  const { data, isLoading } = useQuery(accuracyQuery);
+  const { data, isLoading } = useQuery(valuePickRecordQuery);
 
-  if (isLoading || !data || !data.recent.length) return null;
-  const hits = data.recent.filter((r) => r.picks[0]?.hit).length;
+  if (isLoading || !data || !data.total) return null;
 
   return (
     <Link
       to="/accuracy"
+      hash="value-pick-record"
       className="mt-4 flex items-center justify-between gap-3 border border-border bg-surface-strong/40 px-4 py-2.5 transition-colors hover:border-primary/50"
     >
       <span className="text-xs text-muted-foreground">
-        Value Pick record:{" "}
+        Yesterday's Value Picks:{" "}
         <span className="font-mono font-semibold text-primary">
-          {hits}/{data.recent.length}
-        </span>{" "}
-        over the last {data.windowDays} days
+          {data.hits}/{data.total}
+        </span>
       </span>
       <span className="shrink-0 text-xs font-semibold text-primary">Full breakdown →</span>
     </Link>
