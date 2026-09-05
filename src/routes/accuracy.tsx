@@ -50,7 +50,7 @@ function ValuePickRecordSection() {
   const { data } = useSuspenseQuery(valuePickRecordQuery);
 
   return (
-    <section id="value-pick-record" className="mt-6 scroll-mt-6">
+    <section id="value-pick-record" className="scroll-mt-6">
       <h2 className="eyebrow border-b border-border pb-2 text-xs text-muted-foreground">
         Yesterday's Value Picks · {data.date}
       </h2>
@@ -75,28 +75,26 @@ function ValuePickRecordSection() {
             {data.picks.map((p) => (
               <div
                 key={p.matchId}
-                className={cn(
-                  "panel flex items-center justify-between gap-3 p-3",
-                  p.hit ? "border-primary/30" : "border-destructive/30",
-                )}
+                className={cn("panel p-3", p.hit ? "border-primary/30" : "border-destructive/30")}
               >
-                <div className="flex min-w-0 items-center gap-2">
-                  {p.hit ? (
-                    <Check className="size-4 shrink-0 text-primary" />
-                  ) : (
-                    <X className="size-4 shrink-0 text-destructive" />
-                  )}
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">{p.fixture}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {p.label} <span className="text-muted-foreground/70">({p.market})</span> ·{" "}
-                      {p.league}
-                    </p>
-                  </div>
+                <div>
+                  <p className="truncate text-sm font-semibold">{p.fixture}</p>
+                  <p className="truncate text-xs text-muted-foreground">{p.league}</p>
                 </div>
-                <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                  {Math.round(p.probability * 100)}%
-                </span>
+                <div className="ticket-divider mt-2 flex items-center justify-between gap-3 pt-2">
+                  <span className="flex min-w-0 items-center gap-1.5 text-xs">
+                    {p.hit ? (
+                      <Check className="size-3.5 shrink-0 text-primary" />
+                    ) : (
+                      <X className="size-3.5 shrink-0 text-destructive" />
+                    )}
+                    <span className="truncate font-medium">{p.label}</span>
+                    <span className="shrink-0 text-muted-foreground">({p.market})</span>
+                  </span>
+                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                    {Math.round(p.probability * 100)}%
+                  </span>
+                </div>
               </div>
             ))}
           </div>
@@ -131,15 +129,7 @@ function AccuracyPage() {
         </div>
       </header>
 
-      <ValuePickRecordSection />
-
-      <div className="section-ornament my-6">
-        <span className="section-ornament-line" />
-        <span className="font-display text-xs tracking-[0.2em]">✦</span>
-        <span className="section-ornament-line" />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 pt-6 lg:grid-cols-2">
         {data.byMarket.length ? (
           <BarSection
             title="By market"
@@ -179,6 +169,14 @@ function AccuracyPage() {
           />
         </div>
       ) : null}
+
+      <div className="section-ornament my-6">
+        <span className="section-ornament-line" />
+        <span className="font-display text-xs tracking-[0.2em]">✦</span>
+        <span className="section-ornament-line" />
+      </div>
+
+      <ValuePickRecordSection />
     </SiteShell>
   );
 }

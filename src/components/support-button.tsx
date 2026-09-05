@@ -3,9 +3,9 @@ import { HandHeart, X } from "lucide-react";
 
 // Placeholder — swap these for real details once the account is set up.
 const SUPPORT_DETAILS = {
-  provider: "Opay / PalmPay",
-  accountName: "Max AI Tips (placeholder — add real name)",
-  accountNumber: "0000000000 (placeholder — add real number)",
+  provider: "Bank",
+  accountName: "Max AI Tips (placeholder)",
+  accountNumber: "0000000000 (placeholder)",
 };
 
 export function SupportButton() {
@@ -39,9 +39,11 @@ export function SupportButton() {
               </button>
             </div>
             <p className="mt-2 font-serif text-sm leading-relaxed text-muted-foreground">
-              Max AI Tips is, and will stay, completely free — no login, no paywall. If you've found
-              it useful and want to help cover hosting costs, that's genuinely appreciated, but
-              entirely optional. This is not tied to any bet's outcome.
+              Max AI Tips will always remain completely free. No logins or subscriptions.
+              Building and hosting continous statistical models and live data pipelines incure daily infrastructure
+              costs. If you've found our picks valuable and want to help keep the system running and expanding
+              optional support is deeply appreciated and directly fund our server hosting. 
+              
             </p>
             <div className="ticket-divider mt-4 space-y-1.5 pt-4 font-mono text-sm">
               <p>{SUPPORT_DETAILS.provider}</p>
@@ -49,7 +51,7 @@ export function SupportButton() {
               <p>{SUPPORT_DETAILS.accountNumber}</p>
             </div>
             <p className="mt-3 text-[11px] text-muted-foreground">
-              (Placeholder details — the site owner hasn't added the real account yet.)
+              (the site owner hasn't added the real account yet.)
             </p>
           </div>
         </div>
