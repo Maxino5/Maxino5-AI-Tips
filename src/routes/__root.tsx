@@ -13,6 +13,8 @@ import appCss from "../styles.css?url";
 import { BetSlipProvider } from "../lib/bet-slip";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "../components/ui/sonner";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { themeInitScript } from "../lib/theme";
 
 const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
@@ -148,6 +150,8 @@ function RootComponent() {
         <Outlet />
       </BetSlipProvider>
       <Toaster position="bottom-left" />
+      <Analytics />
+      <SpeedInsights />
     </QueryClientProvider>
   );
 }

@@ -20,23 +20,59 @@ const predictionQuery = (matchId: string) =>
   });
 
 export const Route = createFileRoute("/match/$matchId")({
-  head: () => ({
-    meta: [
-      { title: "Match prediction & probabilities | Max AI Tips" },
-      {
-        name: "description",
-        content:
-          "Full prediction breakdown: match result, double chance, over/under goals, corners and totals with probability ratings.",
-      },
-      { property: "og:title", content: "Match prediction & probabilities | Max AI Tips" },
-      {
-        property: "og:description",
-        content: "Every market for this fixture, priced with a calibrated probability rating.",
-      },
-    ],
-  }),
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(predictionQuery(params.matchId)),
+  head: ({ loaderData }) => {
+    const p = loaderData;
+    const fixtureName = p ? `${p.homeTeam} vs ${p.awayTeam}` : "Match prediction";
+    const title = p
+      ? `${fixtureName} prediction & probabilities | Max AI Tips`
+      : "Match prediction & probabilities | Max AI Tips";
+    const description = p
+      ? `${fixtureName} (${p.league}): ${p.headline}`
+      : "Full prediction breakdown: match result, double chance, over/under goals, corners and totals with probability ratings.";
+
+    const meta: Array<Record<string, unknown>> = [
+      { title },
+      { name: "description", content: description },
+      { property: "og:title", content: title },
+      { property: "og:description", content: description },
+    ];
+
+    // Real structured data — only when we actually have a real prediction to
+    // describe, built entirely from data already fetched for this page, not
+    // guessed or duplicated.
+    if (p) {
+      // This file is isomorphic (bundled for both server and browser), so it
+      // can't safely read process.env the way the *.server.ts files do —
+      // and `window` doesn't exist during SSR, which is exactly when a
+      // crawler is reading this. Prefer the real browser origin when
+      // available (accurate for local dev too), falling back to the known
+      // production domain otherwise.
+      const siteUrl =
+        typeof window !== "undefined" ? window.location.origin : "https://maxaitips.vercel.app";
+      meta.push({
+        "script:ld+json": {
+          "@context": "https://schema.org",
+          "@type": "SportsEvent",
+          name: fixtureName,
+          sport: p.sport === "basketball" ? "Basketball" : "Soccer",
+          ...(p.kickoff ? { startDate: p.kickoff } : {}),
+          eventStatus:
+            p.status === "finished"
+              ? "https://schema.org/EventCompleted"
+              : "https://schema.org/EventScheduled",
+          ...(p.venue ? { location: { "@type": "Place", name: p.venue } } : {}),
+          homeTeam: { "@type": "SportsTeam", name: p.homeTeam },
+          awayTeam: { "@type": "SportsTeam", name: p.awayTeam },
+          url: `${siteUrl}/match/${p.matchId}`,
+          description,
+        },
+      });
+    }
+
+    return { meta };
+  },
   component: MatchPage,
 });
 

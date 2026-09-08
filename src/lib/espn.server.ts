@@ -745,7 +745,15 @@ export async function fetchMatchContext(
   let homeResults: PastResult[] = [];
   let awayResults: PastResult[] = [];
 
-  if (summary && homeId && awayId) {
+  // ESPN's embedded "lastFiveGames" reflects each team's form as of RIGHT
+  // NOW, not as of any specific past date — using it for a backdated
+  // reconstruction (beforeDate set) silently drifts further wrong the more
+  // time has passed since that date, since it only shrinks a fixed-size
+  // window rather than truly filtering by date first. Only use it for live,
+  // present-moment calls; anything reconstructing the past goes straight to
+  // the schedule endpoint, which filters by date correctly before limiting
+  // to a count.
+  if (summary && homeId && awayId && !beforeDate) {
     homeResults = resultsFromLastFive(summary, homeId, beforeDate);
     awayResults = resultsFromLastFive(summary, awayId, beforeDate);
   }

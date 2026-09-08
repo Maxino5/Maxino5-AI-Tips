@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccuracyRouteImport } from './routes/accuracy'
 import { Route as NewsRouteImport } from './routes/news'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ValueRouteImport } from './routes/value'
 import { Route as ApiDailyDigestRouteImport } from './routes/api/daily-digest'
 import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
@@ -29,6 +31,16 @@ const AccuracyRoute = AccuracyRouteImport.update({
 const NewsRoute = NewsRouteImport.update({
   id: '/news',
   path: '/news',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ValueRoute = ValueRouteImport.update({
@@ -51,6 +63,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accuracy': typeof AccuracyRoute
   '/news': typeof NewsRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/value': typeof ValueRoute
   '/api/daily-digest': typeof ApiDailyDigestRoute
   '/match/$matchId': typeof MatchMatchIdRoute
@@ -59,6 +73,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accuracy': typeof AccuracyRoute
   '/news': typeof NewsRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/value': typeof ValueRoute
   '/api/daily-digest': typeof ApiDailyDigestRoute
   '/match/$matchId': typeof MatchMatchIdRoute
@@ -68,6 +84,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/accuracy': typeof AccuracyRoute
   '/news': typeof NewsRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/value': typeof ValueRoute
   '/api/daily-digest': typeof ApiDailyDigestRoute
   '/match/$matchId': typeof MatchMatchIdRoute
@@ -78,6 +96,8 @@ export interface FileRouteTypes {
     | '/'
     | '/accuracy'
     | '/news'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/value'
     | '/api/daily-digest'
     | '/match/$matchId'
@@ -86,6 +106,8 @@ export interface FileRouteTypes {
     | '/'
     | '/accuracy'
     | '/news'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/value'
     | '/api/daily-digest'
     | '/match/$matchId'
@@ -94,6 +116,8 @@ export interface FileRouteTypes {
     | '/'
     | '/accuracy'
     | '/news'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/value'
     | '/api/daily-digest'
     | '/match/$matchId'
@@ -103,6 +127,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccuracyRoute: typeof AccuracyRoute
   NewsRoute: typeof NewsRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ValueRoute: typeof ValueRoute
   ApiDailyDigestRoute: typeof ApiDailyDigestRoute
   MatchMatchIdRoute: typeof MatchMatchIdRoute
@@ -129,6 +155,20 @@ declare module '@tanstack/react-router' {
       path: '/news'
       fullPath: '/news'
       preLoaderRoute: typeof NewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/value': {
@@ -159,6 +199,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccuracyRoute: AccuracyRoute,
   NewsRoute: NewsRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   ValueRoute: ValueRoute,
   ApiDailyDigestRoute: ApiDailyDigestRoute,
   MatchMatchIdRoute: MatchMatchIdRoute,
